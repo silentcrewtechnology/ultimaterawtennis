@@ -30,6 +30,7 @@ body{
   font-family:'DM Sans',sans-serif;
   overflow-x:hidden;
   min-height:100vh;
+  min-height:100dvh;
   display:flex;flex-direction:column;
 }
 body::after{
@@ -165,6 +166,7 @@ body.webview .filters-bar{padding-top:14px;border-top:none}
   position:relative;z-index:2;
   display:grid;
   grid-template-columns:420px 1fr;
+  grid-template-rows:minmax(0,1fr);
   flex:1;
   min-height:0;
 }
@@ -172,12 +174,12 @@ body.webview .filters-bar{padding-top:14px;border-top:none}
 /* LIST */
 .courts-list{
   overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
   padding:18px 22px 32px;
   border-right:1px solid var(--line);
   background:rgba(0,0,0,.12);
-  max-height:calc(100vh - 200px);
+  min-height:0;
 }
-body.webview .courts-list{max-height:calc(100vh - 86px)}
 .list-meta{
   font-size:.74rem;color:var(--muted);letter-spacing:.08em;
   text-transform:uppercase;
@@ -333,18 +335,14 @@ body.webview footer{display:none}
   .page-head{padding:34px 22px 18px}
   .filters-bar{padding:14px 22px;gap:8px}
   .geo-btn{order:5;margin-left:0}
-  .content-split{grid-template-columns:1fr;grid-template-rows:1fr}
-  .courts-list{
-    border-right:none;
-    max-height:calc(100vh - 240px);
+  /* Stack: map on top (always visible), scrollable list below */
+  .content-split{
+    grid-template-columns:1fr;
+    grid-template-rows:40dvh minmax(0,1fr);
   }
-  body.webview .courts-list{max-height:calc(100vh - 130px)}
-  .map-container{display:none;height:calc(100vh - 240px)}
-  body.webview .map-container{height:calc(100vh - 130px)}
-  body.show-map .courts-list{display:none}
-  body.show-map .map-container{display:block;position:relative}
-  body.show-map .map-container #map{position:absolute;inset:0}
-  .mobile-toggle{display:inline-flex}
+  .map-container{order:-1;border-bottom:1px solid var(--line)}
+  .courts-list{border-right:none}
+  .mobile-toggle{display:none}
   footer{padding:22px}
 }
 @media(max-width:540px){
@@ -660,10 +658,9 @@ function setActive(id, opts={}){
   if(opts.fromList){
     map.flyTo([c.lat, c.lon], Math.max(map.getZoom(), 8), {duration:.7});
     markers.get(id)?.openPopup();
-    // On mobile, switch to map view
+    // On mobile the map sits at the top of the stacked layout — bring it into view
     if(window.matchMedia('(max-width:960px)').matches){
-      document.body.classList.add('show-map');
-      togList.classList.remove('on'); togMap.classList.add('on');
+      document.querySelector('.map-container')?.scrollIntoView({behavior:'smooth', block:'start'});
       setTimeout(()=>map.invalidateSize(), 320);
     }
   }
@@ -738,6 +735,7 @@ function escapeHtml(s){
 
 /* Initial render */
 render();
+setTimeout(()=>map.invalidateSize(), 300);
 
 /* Resize handler to keep map happy */
 window.addEventListener('resize', ()=>{
