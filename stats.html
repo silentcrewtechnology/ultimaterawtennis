@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Match Stats — Ultimate</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08192b;
+  --bg2:#0d2540;
+  --blue:#1060a8;
+  --blue2:#1a7fd4;
+  --yellow:#c8e619;
+  --yellow2:#f0f54a;
+  --red:#e8321c;
+  --green:#7ed957;
+  --white:#f2f7fc;
+  --muted:rgba(242,247,252,0.5);
+  --muted2:rgba(242,247,252,0.72);
+  --line:rgba(255,255,255,0.08);
+  --line2:rgba(255,255,255,0.14);
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--white);
+  font-family:-apple-system,BlinkMacSystemFont,'DM Sans',sans-serif;
+  overflow-x:hidden;
+  min-height:100vh;
+}
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1;opacity:.5;
+}
+
+nav{
+  position:sticky;top:0;z-index:500;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 60px;
+  background:rgba(8,25,43,0.88);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line);
+}
+body.webview nav{display:none}
+body.webview .page-head{display:none}
+.logo{font-family:system-ui,sans-serif;font-size:1.5rem;letter-spacing:.12em;color:var(--yellow);text-decoration:none}
+.logo em{color:var(--white);font-style:normal}
+.nav-ul{display:flex;gap:32px;list-style:none}
+.nav-ul a{color:var(--muted);text-decoration:none;font-size:.78rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;transition:color .2s}
+.nav-ul a:hover,.nav-ul a.on{color:var(--yellow)}
+
+/* PAGE HEAD */
+.page-head{
+  position:relative;z-index:2;
+  padding:60px 60px 40px;
+  display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:24px;
+}
+body.webview .page-head{padding:28px 22px 18px}
+.page-head .tag{
+  font-size:.68rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--yellow);margin-bottom:10px;
+}
+.page-head h1{
+  font-family:system-ui,sans-serif;
+  font-size:clamp(2.2rem,5.5vw,4rem);
+  letter-spacing:.04em;line-height:1;
+}
+.page-head .meta{color:var(--muted);font-size:.86rem;line-height:1.7;max-width:380px}
+.page-head .meta strong{color:var(--white);font-weight:500}
+
+.head-actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn-mini{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 18px;border-radius:10px;
+  font-family:-apple-system,BlinkMacSystemFont,'DM Sans',sans-serif;font-size:.78rem;font-weight:600;
+  letter-spacing:.04em;text-decoration:none;border:1px solid var(--line2);
+  background:rgba(255,255,255,.05);color:var(--muted2);
+  cursor:pointer;transition:background .2s,border-color .2s,color .2s;
+}
+.btn-mini:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.28);color:#fff}
+.btn-mini svg{width:14px;height:14px;fill:currentColor}
+
+/* CONTENT */
+.content{
+  position:relative;z-index:2;
+  max-width:1180px;margin:0 auto;
+  padding:24px 60px 100px;
+}
+body.webview .content{padding:0 22px 60px}
+
+/* EMPTY STATE */
+.empty-wrap{
+  background:linear-gradient(135deg,rgba(16,96,168,.10),rgba(13,37,64,.4));
+  border:1px solid var(--line2);
+  border-radius:18px;
+  padding:60px 50px;
+  text-align:center;
+}
+.empty-wrap .ico{
+  width:72px;height:72px;border-radius:50%;
+  background:rgba(200,230,25,.1);
+  border:1px solid rgba(200,230,25,.25);
+  margin:0 auto 22px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:2rem;
+}
+.empty-wrap h2{
+  font-family:system-ui,sans-serif;
+  font-size:1.8rem;letter-spacing:.04em;margin-bottom:12px;
+}
+.empty-wrap p{color:var(--muted2);font-size:.95rem;line-height:1.7;max-width:480px;margin:0 auto 28px}
+
+.empty-demo-btn{
+  max-width:320px;margin:0 auto;
+}
+.opt-card{
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--line2);
+  border-radius:12px;
+  padding:22px 18px;
+  text-align:left;
+  cursor:pointer;
+  transition:background .2s,border-color .2s,transform .15s;
+  display:flex;flex-direction:column;gap:6px;
+  font-family:inherit;
+  color:var(--white);
+}
+.opt-card:hover{
+  background:rgba(255,255,255,.07);
+  border-color:rgba(200,230,25,.4);
+  transform:translateY(-2px);
+}
+.opt-card .opt-ico{font-size:1.4rem;margin-bottom:8px}
+.opt-card .opt-t{font-family:'Anton',sans-serif;font-size:1.05rem;letter-spacing:.08em;color:var(--yellow)}
+.opt-card .opt-d{font-size:.78rem;color:var(--muted2);line-height:1.6}
+
+/* DASHBOARD */
+.dashboard{display:none;flex-direction:column;gap:14px}
+.dashboard.on{display:flex}
+
+.player-hero{
+  background:linear-gradient(125deg,#1060a8 0%,#0a3870 100%);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  padding:26px 32px;
+  display:flex;align-items:center;gap:24px;flex-wrap:wrap;
+}
+.player-hero .ph-avatar{
+  width:64px;height:64px;border-radius:50%;
+  background:rgba(255,255,255,.12);
+  display:flex;align-items:center;justify-content:center;
+  font-family:system-ui,sans-serif;font-size:1.7rem;letter-spacing:.04em;
+  border:2px solid rgba(255,255,255,.2);
+  flex-shrink:0;
+}
+.player-hero .ph-name{font-family:'Anton',sans-serif;font-size:1.5rem;letter-spacing:.05em}
+.player-hero .ph-sub{color:rgba(255,255,255,.65);font-size:.82rem;margin-top:4px}
+.player-hero .ph-grow{flex:1}
+/* KPI GRID */
+.kpi-grid{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:10px;
+}
+.kpi{
+  background:var(--bg2);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:18px 18px 16px;
+  position:relative;overflow:hidden;
+}
+.kpi .kpi-l{
+  font-size:.66rem;color:var(--muted);
+  letter-spacing:.16em;text-transform:uppercase;
+  margin-bottom:8px;
+}
+.kpi .kpi-v{
+  font-family:system-ui,sans-serif;
+  font-size:2.2rem;letter-spacing:.02em;line-height:1;color:var(--white);
+}
+.kpi .kpi-v .unit{font-size:.9rem;color:var(--muted);margin-left:3px}
+.kpi.win .kpi-v{color:var(--green)}
+.kpi.loss .kpi-v{color:var(--red)}
+.kpi.rate .kpi-v{color:var(--yellow)}
+.kpi.streak .kpi-v{color:var(--yellow)}
+.kpi .kpi-sub{font-size:.7rem;color:var(--muted);margin-top:4px;letter-spacing:.04em}
+
+/* CHARTS GRID */
+.charts-grid{
+  display:grid;grid-template-columns:2fr 1fr;gap:14px;
+}
+.panel{
+  background:var(--bg2);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:22px 24px;
+  position:relative;
+}
+.panel-h{
+  display:flex;justify-content:space-between;align-items:baseline;
+  margin-bottom:18px;
+}
+.panel-h h3{
+  font-family:system-ui,sans-serif;
+  font-size:1rem;letter-spacing:.1em;color:var(--white);
+}
+.panel-h .panel-sub{color:var(--muted);font-size:.74rem;letter-spacing:.04em}
+.canvas-wrap{position:relative;height:240px}
+.canvas-wrap.tall{height:280px}
+
+/* SURFACE BARS (no chart needed - HTML) */
+.surface-bars{display:flex;flex-direction:column;gap:14px}
+.sbar{display:grid;grid-template-columns:80px 1fr 90px;gap:12px;align-items:center;font-size:.82rem}
+.sbar-label{color:var(--muted2);letter-spacing:.06em;text-transform:capitalize}
+.sbar-track{height:10px;background:rgba(255,255,255,.05);border-radius:6px;overflow:hidden;display:flex}
+.sbar-w{height:100%;background:var(--green)}
+.sbar-l{height:100%;background:rgba(232,50,28,.85)}
+.sbar-stat{font-size:.78rem;color:var(--white);font-weight:500;text-align:right}
+.sbar-stat .rate{color:var(--yellow);margin-left:6px}
+
+/* MAP PANEL */
+.map-panel{padding:22px 24px 0}
+.map-panel #stats-map{
+  width:calc(100% + 48px);
+  margin-left:-24px;margin-right:-24px;
+  height:280px;
+  background:#06121e;
+  border-bottom-left-radius:14px;border-bottom-right-radius:14px;
+  margin-top:16px;
+}
+
+/* RECENT MATCHES */
+.matches-table{
+  display:flex;flex-direction:column;
+  border-radius:10px;overflow:hidden;
+  border:1px solid var(--line);
+}
+.match-row{
+  display:grid;grid-template-columns:90px 1fr 1fr 110px 50px;
+  align-items:center;gap:12px;
+  padding:12px 18px;
+  background:rgba(0,0,0,.18);
+  border-bottom:1px solid var(--line);
+  font-size:.82rem;
+}
+.match-row:last-child{border-bottom:none}
+.match-row .m-date{color:var(--muted);font-size:.74rem;letter-spacing:.04em}
+.match-row .m-opp{color:var(--white)}
+.match-row .m-loc{color:var(--muted2);font-size:.78rem}
+.match-row .m-score{color:var(--muted2);font-family:ui-monospace,Menlo,monospace;font-size:.78rem}
+.match-row .m-wl{
+  text-align:center;
+  font-weight:700;font-size:.7rem;letter-spacing:.08em;
+  padding:3px 0;border-radius:5px;
+}
+.match-row .m-wl.w{background:rgba(126,217,87,.18);color:var(--green)}
+.match-row .m-wl.l{background:rgba(232,50,28,.18);color:#ff7866}
+
+/* WORLD TENNIS */
+.world-wrap{margin-top:14px}
+.world-tabs{display:flex;gap:4px;background:rgba(255,255,255,.04);border:1px solid var(--line2);border-radius:9px;padding:3px}
+.wt-tab{
+  background:none;border:none;cursor:pointer;
+  padding:6px 16px;border-radius:6px;
+  font:inherit;font-size:.74rem;font-weight:700;letter-spacing:.08em;
+  color:var(--muted2);transition:background .2s,color .2s;
+}
+.wt-tab.on{background:var(--yellow);color:#08192b}
+
+.world-table{
+  display:flex;flex-direction:column;
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;
+}
+.wrow{
+  display:grid;
+  grid-template-columns:42px 28px 1fr 130px 90px 90px;
+  align-items:center;gap:14px;
+  padding:13px 18px;
+  background:rgba(0,0,0,.18);
+  border-bottom:1px solid var(--line);
+  font-size:.84rem;
+}
+.wrow:last-child{border-bottom:none}
+.wrow.head{
+  background:rgba(255,255,255,.03);
+  font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+}
+.wrow .w-rank{
+  font-family:system-ui,sans-serif;font-size:1.3rem;line-height:1;
+  color:var(--muted2);text-align:center;
+}
+.wrow.r1 .w-rank{color:var(--yellow)}
+.wrow .w-flag{font-size:1.3rem;text-align:center}
+.wrow .w-name{font-weight:500;color:#fff;line-height:1.3}
+.wrow .w-name small{display:block;color:var(--muted);font-size:.7rem;letter-spacing:.04em;margin-top:2px}
+.wrow .w-co{color:var(--muted2);font-size:.78rem}
+.wrow .w-wl{font-family:ui-monospace,Menlo,monospace;font-size:.82rem;color:var(--white);text-align:right}
+.wrow .w-rate{
+  display:inline-flex;align-items:center;justify-content:flex-end;gap:8px;
+  font-weight:600;color:var(--yellow);font-size:.84rem;
+}
+.wrow .w-rate-bar{
+  flex:1;max-width:50px;height:6px;border-radius:3px;
+  background:rgba(200,230,25,.12);overflow:hidden;
+}
+.wrow .w-rate-bar-fill{height:100%;background:var(--yellow)}
+
+.world-foot{
+  margin-top:14px;font-size:.72rem;color:var(--muted);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+}
+.world-foot a{color:var(--yellow);text-decoration:none}
+.world-foot a:hover{text-decoration:underline}
+
+/* FOOTER */
+footer{
+  position:relative;z-index:2;
+  background:#040e18;
+  border-top:1px solid rgba(255,255,255,.05);
+  padding:30px 60px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;
+}
+body.webview footer{display:none}
+.f-logo{font-family:'Anton',sans-serif;font-size:1.05rem;letter-spacing:.1em;color:var(--yellow)}
+.f-links{display:flex;gap:24px;list-style:none}
+.f-links a{color:rgba(255,255,255,.28);font-size:.78rem;text-decoration:none;transition:color .2s}
+.f-links a:hover{color:var(--yellow)}
+.f-copy{color:rgba(255,255,255,.15);font-size:.74rem}
+
+/* RESPONSIVE */
+@media(max-width:960px){
+  nav{padding:14px 22px}
+  .page-head{padding:32px 22px 22px}
+  .content{padding:18px 22px 70px}
+  .head-actions{width:100%}
+  .empty-options{grid-template-columns:1fr}
+  .empty-wrap{padding:40px 24px}
+  .kpi-grid{grid-template-columns:repeat(3,1fr)}
+  .charts-grid{grid-template-columns:1fr}
+  .player-hero{padding:22px 22px}
+  .match-row{grid-template-columns:70px 1fr 90px 44px;font-size:.78rem;padding:11px 14px}
+  .match-row .m-loc{display:none}
+  .wrow{grid-template-columns:32px 24px 1fr 78px 60px;gap:10px;padding:11px 14px;font-size:.78rem}
+  .wrow .w-co{display:none}
+  .wrow .w-rate-bar{display:none}
+  .wrow .w-rank{font-size:1.1rem}
+  footer{padding:22px}
+}
+@media(max-width:540px){
+  .page-head h1{font-size:2rem}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .kpi .kpi-v{font-size:1.8rem}
+  .player-hero{gap:14px}
+  .player-hero .ph-avatar{width:54px;height:54px;font-size:1.4rem}
+  .player-hero .ph-name{font-size:1.2rem}
+  .panel{padding:18px 18px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">ULTI<em>MATE</em></a>
+  <ul class="nav-ul">
+    <li><a href="index.html">App</a></li>
+    <li><a href="/tournamentcourts">Courts</a></li>
+    <li><a href="/tournamentstats" class="on">Stats</a></li>
+    <li><a href="index-2.html">Privacy</a></li>
+  </ul>
+</nav>
+
+<div class="page-head">
+  <div>
+    <p class="tag">Insights · Tennis</p>
+    <h1>YOUR MATCHES,<br>VISUALIZED</h1>
+    <p class="meta" style="margin-top:14px">
+      The mobile app keeps your match history on-device.
+      <strong>Open it here on a bigger screen</strong> for graphs, surface stats and a location heatmap — still 100% local.
+    </p>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- EMPTY -->
+  <section class="empty-wrap" id="empty">
+    <div class="ico">📊</div>
+    <h2>Сыграй первый матч в приложении</h2>
+    <p>Или попробуй демо-сезон, чтобы посмотреть как выглядит дашборд</p>
+    <div class="empty-demo-btn">
+      <button class="opt-card" id="opt-demo">
+        <span class="opt-ico">🎾</span>
+        <span class="opt-t">TRY DEMO</span>
+        <span class="opt-d">Демо-сезон с графиками, поверхностями и картой.</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section class="dashboard" id="dash">
+
+    <div class="player-hero">
+      <div class="ph-avatar" id="ph-avatar">?</div>
+      <div class="ph-grow">
+        <div class="ph-name" id="ph-name">PLAYER</div>
+        <div class="ph-sub" id="ph-sub">— matches</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-l">Matches</div><div class="kpi-v" id="kpi-total">0</div></div>
+      <div class="kpi win"><div class="kpi-l">Wins</div><div class="kpi-v" id="kpi-wins">0</div></div>
+      <div class="kpi loss"><div class="kpi-l">Losses</div><div class="kpi-v" id="kpi-loss">0</div></div>
+      <div class="kpi rate"><div class="kpi-l">Win rate</div><div class="kpi-v" id="kpi-rate">0<span class="unit">%</span></div></div>
+      <div class="kpi streak"><div class="kpi-l">Current streak</div><div class="kpi-v" id="kpi-curr">0</div><div class="kpi-sub" id="kpi-curr-sub">—</div></div>
+      <div class="kpi streak"><div class="kpi-l">Best streak</div><div class="kpi-v" id="kpi-best">0</div><div class="kpi-sub">wins in a row</div></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="panel">
+        <div class="panel-h">
+          <h3>WIN RATE OVER TIME</h3>
+          <span class="panel-sub">rolling 5-match average</span>
+        </div>
+        <div class="canvas-wrap"><canvas id="ch-timeline"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h">
+          <h3>BY SURFACE</h3>
+          <span class="panel-sub">wins / losses</span>
+        </div>
+        <div class="surface-bars" id="surface-bars"></div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="panel">
+        <div class="panel-h">
+          <h3>TOP OPPONENTS</h3>
+          <span class="panel-sub">most played</span>
+        </div>
+        <div class="canvas-wrap tall"><canvas id="ch-opponents"></canvas></div>
+      </div>
+
+      <div class="panel map-panel">
+        <div class="panel-h">
+          <h3>WHERE YOU PLAY</h3>
+          <span class="panel-sub">location heatmap</span>
+        </div>
+        <div id="stats-map"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h">
+        <h3>RECENT MATCHES</h3>
+        <span class="panel-sub">latest 10</span>
+      </div>
+      <div class="matches-table" id="match-rows"></div>
+    </div>
+
+  </section>
+
+  <!-- WORLD TENNIS — always visible -->
+  <section class="world-wrap">
+    <div class="panel">
+      <div class="panel-h">
+        <h3>WORLD TENNIS · TOP 10</h3>
+        <div class="world-tabs" id="world-tabs">
+          <button class="wt-tab on" data-tour="atp">ATP</button>
+          <button class="wt-tab" data-tour="wta">WTA</button>
+        </div>
+      </div>
+      <div class="world-table" id="world-table"></div>
+      <div class="world-foot">
+        <span>Snapshot · end of 2025 season · season W–L from ATP / WTA tour stats</span>
+        <a href="https://www.atptour.com/en/rankings/singles" target="_blank" rel="noopener">View live rankings →</a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="f-logo">🎾 ULTIMATE</div>
+  <ul class="f-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="/tournamentcourts">Courts</a></li>
+    <li><a href="/tournamentstats">Stats</a></li>
+    <li><a href="index-2.html">Privacy</a></li>
+  </ul>
+  <span class="f-copy">© 2025 My Products. All rights reserved.</span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/* ════════════════════════════════════════════
+   DEMO DATA
+════════════════════════════════════════════ */
+const DEMO = {
+  player:"Aibek S.",
+  matches:[
+    {date:"2025-01-12",opponent:"Arman K.", score:"6-4, 6-3",      won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-01-19",opponent:"Bek M.",   score:"3-6, 6-7",      won:false, surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-01-26",opponent:"Arman K.", score:"6-2, 4-6, 6-4", won:true,  surface:"hard", location:"Esentai Tennis Club", lat:43.2180,lon:76.9260},
+    {date:"2025-02-02",opponent:"Daulet T.",score:"6-1, 6-3",      won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-02-09",opponent:"Erlan B.", score:"7-5, 6-4",      won:true,  surface:"hard", location:"Daulet Sports Complex",lat:43.2520,lon:76.9490},
+    {date:"2025-02-16",opponent:"Bek M.",   score:"6-4, 6-3",      won:true,  surface:"hard", location:"Esentai Tennis Club", lat:43.2180,lon:76.9260},
+    {date:"2025-02-23",opponent:"Murat S.", score:"4-6, 6-4, 5-7", won:false, surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-03-02",opponent:"Arman K.", score:"7-6, 6-4",      won:true,  surface:"hard", location:"Nat'l Tennis Center, Astana",lat:51.1660,lon:71.4260},
+    {date:"2025-03-09",opponent:"Nurlan T.",score:"6-2, 6-2",      won:true,  surface:"hard", location:"Nat'l Tennis Center, Astana",lat:51.1660,lon:71.4260},
+    {date:"2025-03-16",opponent:"Daulet T.",score:"6-3, 7-6",      won:true,  surface:"hard", location:"Esentai Tennis Club", lat:43.2180,lon:76.9260},
+    {date:"2025-03-23",opponent:"Bek M.",   score:"2-6, 4-6",      won:false, surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-04-06",opponent:"Arman K.", score:"6-2, 6-3",      won:true,  surface:"clay", location:"Daulet Sports Complex",lat:43.2520,lon:76.9490},
+    {date:"2025-04-13",opponent:"Olzhas R.",score:"5-7, 6-4, 6-3", won:true,  surface:"clay", location:"Daulet Sports Complex",lat:43.2520,lon:76.9490},
+    {date:"2025-04-20",opponent:"Daulet T.",score:"6-7, 3-6",      won:false, surface:"clay", location:"Daulet Sports Complex",lat:43.2520,lon:76.9490},
+    {date:"2025-04-27",opponent:"Bek M.",   score:"6-4, 4-6, 6-2", won:true,  surface:"clay", location:"Daulet Sports Complex",lat:43.2520,lon:76.9490},
+    {date:"2025-05-04",opponent:"Pavel L.", score:"6-3, 6-1",      won:true,  surface:"clay", location:"TK Sparta, Prague",   lat:50.1060,lon:14.4210},
+    {date:"2025-05-11",opponent:"Marko I.", score:"4-6, 6-7",      won:false, surface:"clay", location:"TK Sparta, Prague",   lat:50.1060,lon:14.4210},
+    {date:"2025-05-18",opponent:"Arman K.", score:"6-4, 7-5",      won:true,  surface:"clay", location:"Geneva Tennis Club",  lat:46.1970,lon:6.1570 },
+    {date:"2025-06-01",opponent:"Pavel L.", score:"6-2, 6-4",      won:true,  surface:"grass",location:"Halle, Germany",      lat:51.9986,lon:8.3608 },
+    {date:"2025-06-08",opponent:"Nurlan T.",score:"3-6, 4-6",      won:false, surface:"grass",location:"Halle, Germany",      lat:51.9986,lon:8.3608 },
+    {date:"2025-06-15",opponent:"Daulet T.",score:"7-6, 6-7, 6-3", won:true,  surface:"grass",location:"Queen's Club, London",lat:51.4881,lon:-0.2122},
+    {date:"2025-06-22",opponent:"Bek M.",   score:"6-4, 6-2",      won:true,  surface:"grass",location:"Queen's Club, London",lat:51.4881,lon:-0.2122},
+    {date:"2025-07-06",opponent:"Arman K.", score:"6-3, 6-3",      won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-07-13",opponent:"Erlan B.", score:"6-2, 6-1",      won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-07-20",opponent:"Murat S.", score:"7-5, 6-4",      won:true,  surface:"hard", location:"Nat'l Tennis Center, Astana",lat:51.1660,lon:71.4260},
+    {date:"2025-07-27",opponent:"Bek M.",   score:"4-6, 6-3, 7-6", won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-08-03",opponent:"Daulet T.",score:"6-7, 6-4, 4-6", won:false, surface:"hard", location:"Esentai Tennis Club", lat:43.2180,lon:76.9260},
+    {date:"2025-08-10",opponent:"Arman K.", score:"6-2, 6-3",      won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-08-24",opponent:"Pavel L.", score:"6-4, 7-5",      won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-09-07",opponent:"Nurlan T.",score:"6-3, 6-4",      won:true,  surface:"hard", location:"Karaganda Tennis Center",lat:49.8060,lon:73.1160},
+    {date:"2025-09-14",opponent:"Bek M.",   score:"3-6, 6-7",      won:false, surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-09-21",opponent:"Murat S.", score:"6-4, 6-4",      won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-09-28",opponent:"Arman K.", score:"6-3, 6-2",      won:true,  surface:"hard", location:"Esentai Tennis Club", lat:43.2180,lon:76.9260},
+    {date:"2025-10-12",opponent:"Daulet T.",score:"7-6, 7-5",      won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-10-19",opponent:"Olzhas R.",score:"4-6, 6-3, 6-2", won:true,  surface:"hard", location:"Tashkent Olympic",    lat:41.3430,lon:69.2730},
+    {date:"2025-10-26",opponent:"Bek M.",   score:"5-7, 6-2, 7-5", won:true,  surface:"hard", location:"Tashkent Olympic",    lat:41.3430,lon:69.2730},
+    {date:"2025-11-09",opponent:"Pavel L.", score:"6-4, 6-3",      won:true,  surface:"hard", location:"Almaty Tennis Park",  lat:43.2300,lon:76.9450},
+    {date:"2025-11-16",opponent:"Arman K.", score:"6-2, 6-4",      won:true,  surface:"hard", location:"Nat'l Tennis Center, Astana",lat:51.1660,lon:71.4260},
+  ]
+};
+
+/* ════════════════════════════════════════════
+   WORLD TENNIS · TOP 10 SNAPSHOT
+   Updated: end of 2025 season
+════════════════════════════════════════════ */
+const WORLD = {
+  atp:[
+    {r:1,  n:"Jannik Sinner",      f:"🇮🇹", co:"Italy",         age:24, wl:"68–6",  rate:92, note:"World No. 1"},
+    {r:2,  n:"Carlos Alcaraz",     f:"🇪🇸", co:"Spain",         age:22, wl:"61–13", rate:82, note:"2× Roland Garros"},
+    {r:3,  n:"Alexander Zverev",   f:"🇩🇪", co:"Germany",       age:28, wl:"55–22", rate:71, note:""},
+    {r:4,  n:"Taylor Fritz",       f:"🇺🇸", co:"USA",           age:28, wl:"50–21", rate:70, note:""},
+    {r:5,  n:"Novak Djokovic",     f:"🇷🇸", co:"Serbia",        age:38, wl:"39–14", rate:74, note:"24 Slams"},
+    {r:6,  n:"Casper Ruud",        f:"🇳🇴", co:"Norway",        age:27, wl:"47–22", rate:68, note:""},
+    {r:7,  n:"Alex de Minaur",     f:"🇦🇺", co:"Australia",     age:27, wl:"52–24", rate:68, note:""},
+    {r:8,  n:"Lorenzo Musetti",    f:"🇮🇹", co:"Italy",         age:24, wl:"45–22", rate:67, note:""},
+    {r:9,  n:"Holger Rune",        f:"🇩🇰", co:"Denmark",       age:22, wl:"42–23", rate:65, note:""},
+    {r:10, n:"Alexander Bublik",   f:"🇰🇿", co:"Kazakhstan",    age:28, wl:"40–24", rate:63, note:"KZ No. 1"},
+  ],
+  wta:[
+    {r:1,  n:"Aryna Sabalenka",    f:"🇧🇾", co:"Belarus",       age:28, wl:"58–11", rate:84, note:"World No. 1"},
+    {r:2,  n:"Iga Świątek",        f:"🇵🇱", co:"Poland",        age:25, wl:"56–14", rate:80, note:"5× Slam"},
+    {r:3,  n:"Coco Gauff",         f:"🇺🇸", co:"USA",           age:22, wl:"52–16", rate:76, note:""},
+    {r:4,  n:"Jessica Pegula",     f:"🇺🇸", co:"USA",           age:32, wl:"49–18", rate:73, note:""},
+    {r:5,  n:"Jasmine Paolini",    f:"🇮🇹", co:"Italy",         age:30, wl:"47–20", rate:70, note:""},
+    {r:6,  n:"Elena Rybakina",     f:"🇰🇿", co:"Kazakhstan",    age:26, wl:"46–18", rate:72, note:"Wimbledon '22"},
+    {r:7,  n:"Qinwen Zheng",       f:"🇨🇳", co:"China",         age:23, wl:"44–22", rate:67, note:"Olympic gold"},
+    {r:8,  n:"Emma Navarro",       f:"🇺🇸", co:"USA",           age:24, wl:"43–22", rate:66, note:""},
+    {r:9,  n:"Madison Keys",       f:"🇺🇸", co:"USA",           age:31, wl:"40–20", rate:67, note:"AO '25 champion"},
+    {r:10, n:"Mirra Andreeva",     f:"🇨🇾", co:"—",             age:18, wl:"45–21", rate:68, note:"Teen breakout"},
+  ]
+};
+
+/* ════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+let DATA = null;
+let loadedFromApp = false;
+let timelineChart = null;
+let opponentsChart = null;
+let statsMap = null;
+let mapLayer = null;
+
+const empty = document.getElementById('empty');
+const dash  = document.getElementById('dash');
+
+/* Chart.js defaults — dark theme */
+if(window.Chart){
+  Chart.defaults.color = 'rgba(242,247,252,.55)';
+  Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
+  Chart.defaults.font.family = "'DM Sans',sans-serif";
+}
+
+/* ════════════════════════════════════════════
+   LOAD / VALIDATE
+════════════════════════════════════════════ */
+function load(data){
+  const valid = validate(data);
+  if(!valid.ok){
+    alert('Could not load: ' + valid.error);
+    return false;
+  }
+  DATA = valid.data;
+  // sort matches by date ascending
+  DATA.matches.sort((a,b)=>a.date.localeCompare(b.date));
+  render();
+  return true;
+}
+
+function validate(raw){
+  if(!raw || typeof raw!=='object') return {ok:false,error:'expected an object'};
+  if(!Array.isArray(raw.matches)) return {ok:false,error:'missing "matches" array'};
+  if(raw.matches.length===0) return {ok:false,error:'matches array is empty'};
+
+  const matches = raw.matches.map((m,i)=>{
+    if(!m.date) throw new Error(`match #${i+1} missing "date"`);
+    if(!m.opponent) throw new Error(`match #${i+1} missing "opponent"`);
+    if(typeof m.won !== 'boolean') throw new Error(`match #${i+1} missing boolean "won"`);
+    return {
+      date: m.date,
+      opponent: String(m.opponent),
+      score: m.score || '',
+      won: m.won,
+      surface: (m.surface || 'hard').toLowerCase(),
+      location: m.location || '',
+      lat: typeof m.lat==='number' ? m.lat : null,
+      lon: typeof m.lon==='number' ? m.lon : null,
+    };
+  });
+  return {ok:true, data:{player: raw.player || 'Player', matches}};
+}
+
+/* ════════════════════════════════════════════
+   RENDER
+════════════════════════════════════════════ */
+function render(){
+  empty.style.display = 'none';
+  dash.classList.add('on');
+
+  const m = DATA.matches;
+  document.getElementById('ph-name').textContent = DATA.player.toUpperCase();
+  document.getElementById('ph-avatar').textContent = initials(DATA.player);
+  const first = m[0]?.date, last = m[m.length-1]?.date;
+  document.getElementById('ph-sub').textContent = `${m.length} matches · ${first} → ${last}`;
+
+  // KPIs
+  const wins = m.filter(x=>x.won).length;
+  const losses = m.length - wins;
+  document.getElementById('kpi-total').textContent = m.length;
+  document.getElementById('kpi-wins').textContent = wins;
+  document.getElementById('kpi-loss').textContent = losses;
+  document.getElementById('kpi-rate').innerHTML = Math.round(wins/m.length*100) + '<span class="unit">%</span>';
+
+  const {cur, curType, best} = streaks(m);
+  document.getElementById('kpi-curr').textContent = cur;
+  document.getElementById('kpi-curr-sub').textContent = curType==='w' ? 'wins in a row' : (curType==='l' ? 'losses in a row' : '—');
+  document.getElementById('kpi-best').textContent = best;
+
+  renderTimeline(m);
+  renderSurface(m);
+  renderOpponents(m);
+  renderMap(m);
+  renderRecent(m);
+}
+
+function streaks(m){
+  if(m.length===0) return {cur:0,curType:null,best:0};
+  let best=0, run=0, lastWon=null;
+  m.forEach(x=>{
+    if(lastWon===null || x.won===lastWon){
+      run++;
+    } else {
+      run=1;
+    }
+    lastWon = x.won;
+    if(x.won && run>best) best=run;
+  });
+  // current streak — count from the end while same outcome
+  let cur=1, curType=m[m.length-1].won?'w':'l';
+  for(let i=m.length-2;i>=0;i--){
+    if(m[i].won===m[m.length-1].won) cur++;
+    else break;
+  }
+  return {cur, curType, best};
+}
+
+/* Timeline: rolling win rate */
+function renderTimeline(m){
+  const win = m.map(x=>x.won?1:0);
+  const window = Math.max(3, Math.min(5, Math.floor(m.length/4)));
+  const labels = m.map(x=>x.date);
+  const data = win.map((_,i)=>{
+    const start = Math.max(0, i-window+1);
+    const slice = win.slice(start, i+1);
+    return Math.round(slice.reduce((a,b)=>a+b,0)/slice.length*100);
+  });
+
+  const ctx = document.getElementById('ch-timeline').getContext('2d');
+  if(timelineChart) timelineChart.destroy();
+
+  const gradient = ctx.createLinearGradient(0,0,0,240);
+  gradient.addColorStop(0,'rgba(200,230,25,.35)');
+  gradient.addColorStop(1,'rgba(200,230,25,0)');
+
+  timelineChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        data,
+        borderColor:'#c8e619',
+        backgroundColor:gradient,
+        borderWidth:2.5,
+        tension:.35,
+        fill:true,
+        pointRadius:0,
+        pointHoverRadius:6,
+        pointHoverBackgroundColor:'#c8e619',
+        pointHoverBorderColor:'#08192b',
+        pointHoverBorderWidth:2,
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#0d2540',
+        borderColor:'rgba(200,230,25,.4)',borderWidth:1,
+        padding:10,titleColor:'#fff',bodyColor:'#fff',
+        callbacks:{label:c=>` Win rate: ${c.parsed.y}%`}
+      }},
+      scales:{
+        x:{ticks:{maxTicksLimit:6,maxRotation:0,callback:function(v){
+          const lbl = this.getLabelForValue(v);
+          return lbl.slice(5); // MM-DD
+        }},grid:{display:false}},
+        y:{min:0,max:100,ticks:{stepSize:25,callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.05)'}}
+      }
+    }
+  });
+}
+
+/* Surface — HTML bars */
+function renderSurface(m){
+  const groups = {};
+  m.forEach(x=>{
+    const s = x.surface;
+    if(!groups[s]) groups[s] = {w:0,l:0};
+    if(x.won) groups[s].w++; else groups[s].l++;
+  });
+  const order = ['hard','clay','grass','carpet'];
+  const entries = order.filter(k=>groups[k]).map(k=>[k,groups[k]]);
+  const cont = document.getElementById('surface-bars');
+  cont.innerHTML = entries.map(([s,g])=>{
+    const total = g.w + g.l;
+    const wPct = g.w/total*100;
+    const lPct = g.l/total*100;
+    const rate = Math.round(g.w/total*100);
+    return `
+      <div class="sbar">
+        <div class="sbar-label">${s}</div>
+        <div class="sbar-track">
+          <div class="sbar-w" style="width:${wPct}%"></div>
+          <div class="sbar-l" style="width:${lPct}%"></div>
+        </div>
+        <div class="sbar-stat">${g.w}–${g.l}<span class="rate">${rate}%</span></div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* Opponents bar chart */
+function renderOpponents(m){
+  const counts = {};
+  m.forEach(x=>{
+    if(!counts[x.opponent]) counts[x.opponent] = {w:0,l:0};
+    if(x.won) counts[x.opponent].w++; else counts[x.opponent].l++;
+  });
+  const entries = Object.entries(counts)
+    .map(([n,v])=>({n, w:v.w, l:v.l, t:v.w+v.l}))
+    .sort((a,b)=>b.t-a.t)
+    .slice(0,8);
+
+  const ctx = document.getElementById('ch-opponents').getContext('2d');
+  if(opponentsChart) opponentsChart.destroy();
+
+  opponentsChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:entries.map(e=>e.n),
+      datasets:[
+        {label:'Wins',  data:entries.map(e=>e.w), backgroundColor:'rgba(126,217,87,.85)', borderRadius:4, stack:'s'},
+        {label:'Losses',data:entries.map(e=>e.l), backgroundColor:'rgba(232,50,28,.85)',  borderRadius:4, stack:'s'},
+      ]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'rgba(242,247,252,.55)',boxWidth:12,padding:14}},
+        tooltip:{
+          backgroundColor:'#0d2540',borderColor:'rgba(200,230,25,.4)',borderWidth:1,padding:10,
+          titleColor:'#fff',bodyColor:'#fff',
+        }
+      },
+      scales:{
+        x:{stacked:true,grid:{color:'rgba(255,255,255,.05)'},ticks:{stepSize:1}},
+        y:{stacked:true,grid:{display:false}}
+      }
+    }
+  });
+}
+
+/* Heatmap map */
+function renderMap(m){
+  const points = m.filter(x=>x.lat && x.lon);
+  if(!statsMap){
+    statsMap = L.map('stats-map', {
+      center:[40,15], zoom:2,
+      scrollWheelZoom:false,
+      worldCopyJump:true,
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom:19,
+      attribution:'© CARTO · © OSM',
+      subdomains:'abcd',
+    }).addTo(statsMap);
+  }
+  if(mapLayer) statsMap.removeLayer(mapLayer);
+  mapLayer = L.layerGroup();
+
+  // group points by lat,lon
+  const buckets = {};
+  points.forEach(p=>{
+    const k = `${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;
+    if(!buckets[k]) buckets[k] = {lat:p.lat, lon:p.lon, count:0, w:0, l:0, name:p.location};
+    buckets[k].count++;
+    if(p.won) buckets[k].w++; else buckets[k].l++;
+  });
+  const places = Object.values(buckets);
+  const maxCount = Math.max(1, ...places.map(b=>b.count));
+
+  places.forEach(b=>{
+    const r = 6 + (b.count/maxCount)*22;
+    const circle = L.circleMarker([b.lat, b.lon], {
+      radius:r,
+      fillColor:'#c8e619',
+      color:'#c8e619',
+      weight:1.5,
+      fillOpacity:.32,
+    }).bindPopup(`<b>${escapeHtml(b.name||'Court')}</b><br>${b.count} matches · ${b.w}W ${b.l}L`);
+    circle.addTo(mapLayer);
+  });
+  mapLayer.addTo(statsMap);
+  if(places.length){
+    const bounds = L.latLngBounds(places.map(p=>[p.lat,p.lon]));
+    statsMap.fitBounds(bounds, {padding:[40,40], maxZoom:6});
+  }
+  setTimeout(()=>statsMap.invalidateSize(), 100);
+}
+
+/* Recent matches table */
+function renderRecent(m){
+  const last10 = [...m].reverse().slice(0,10);
+  const wrap = document.getElementById('match-rows');
+  wrap.innerHTML = last10.map(x=>`
+    <div class="match-row">
+      <div class="m-date">${x.date}</div>
+      <div class="m-opp">${escapeHtml(x.opponent)}</div>
+      <div class="m-loc">${escapeHtml(x.location||'—')}</div>
+      <div class="m-score">${x.score||'—'}</div>
+      <div class="m-wl ${x.won?'w':'l'}">${x.won?'W':'L'}</div>
+    </div>
+  `).join('');
+}
+
+/* ════════════════════════════════════════════
+   ACTIONS
+════════════════════════════════════════════ */
+document.getElementById('opt-demo').addEventListener('click', ()=>{
+  loadedFromApp = false;
+  load(DEMO);
+});
+
+function showEmptyState(){
+  DATA = null;
+  empty.style.display = '';
+  dash.classList.remove('on');
+  if(timelineChart){timelineChart.destroy(); timelineChart=null;}
+  if(opponentsChart){opponentsChart.destroy(); opponentsChart=null;}
+}
+
+window.__loadFromApp = function(data){
+  loadedFromApp = true;
+  return load(data);
+};
+
+/* ════════════════════════════════════════════
+   WEBVIEW + URL HASH
+════════════════════════════════════════════ */
+if(new URLSearchParams(location.search).get('webview')==='1'){
+  document.body.classList.add('webview');
+}
+
+/* Hash-based load: #data=<base64-json> */
+function loadFromHash(){
+  const m = location.hash.match(/#data=(.+)/);
+  if(!m) return false;
+  try{
+    const json = decodeURIComponent(escape(atob(m[1])));
+    return load(JSON.parse(json));
+  }catch(e){
+    console.warn('Bad #data', e);
+    return false;
+  }
+}
+
+/* ════════════════════════════════════════════
+   WORLD TENNIS PANEL
+════════════════════════════════════════════ */
+const worldTable = document.getElementById('world-table');
+function renderWorld(tour){
+  const list = WORLD[tour];
+  worldTable.innerHTML =
+    `<div class="wrow head">
+       <span>#</span><span></span><span>Player</span>
+       <span>Country</span><span style="text-align:right">'25 W–L</span><span style="text-align:right">Win %</span>
+     </div>` +
+    list.map(p=>`
+      <div class="wrow r${p.r}">
+        <span class="w-rank">${p.r}</span>
+        <span class="w-flag">${p.f}</span>
+        <span class="w-name">${escapeHtml(p.n)}${p.note?`<small>${escapeHtml(p.note)} · ${p.age} yrs</small>`:`<small>${p.age} yrs</small>`}</span>
+        <span class="w-co">${escapeHtml(p.co)}</span>
+        <span class="w-wl">${p.wl}</span>
+        <span class="w-rate"><span class="w-rate-bar"><span class="w-rate-bar-fill" style="width:${p.rate}%"></span></span>${p.rate}%</span>
+      </div>
+    `).join('');
+}
+document.querySelectorAll('#world-tabs .wt-tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#world-tabs .wt-tab').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    renderWorld(btn.dataset.tour);
+  });
+});
+renderWorld('atp');
+
+/* Init: hash → load; else wait for __loadFromApp from the app; fallback empty after 500ms */
+(function init(){
+  if(loadFromHash()) return;
+  setTimeout(function(){
+    if(!DATA) showEmptyState();
+  }, 500);
+})();
+
+/* ════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════ */
+function initials(name){
+  return name.split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, ch=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[ch]);
+}
+</script>
+</body>
+</html>

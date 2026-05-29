@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Find Tennis Courts — Ultimate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08192b;
+  --bg2:#0d2540;
+  --blue:#1060a8;
+  --blue2:#1a7fd4;
+  --yellow:#c8e619;
+  --yellow2:#f0f54a;
+  --red:#e8321c;
+  --white:#f2f7fc;
+  --muted:rgba(242,247,252,0.5);
+  --muted2:rgba(242,247,252,0.72);
+  --line:rgba(255,255,255,0.08);
+  --line2:rgba(255,255,255,0.14);
+}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--white);
+  font-family:'DM Sans',sans-serif;
+  overflow-x:hidden;
+  min-height:100vh;
+  display:flex;flex-direction:column;
+}
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1;opacity:.5;
+}
+
+/* NAV */
+nav{
+  position:sticky;top:0;z-index:500;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 60px;
+  background:rgba(8,25,43,0.88);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line);
+}
+body.webview nav{display:none}
+.logo{font-family:'Anton',sans-serif;font-size:1.5rem;letter-spacing:.12em;color:var(--yellow);text-decoration:none}
+.logo em{color:var(--white);font-style:normal}
+.nav-ul{display:flex;gap:32px;list-style:none}
+.nav-ul a{color:var(--muted);text-decoration:none;font-size:.78rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;transition:color .2s}
+.nav-ul a:hover,.nav-ul a.on{color:var(--yellow)}
+
+/* PAGE HEADER */
+.page-head{
+  position:relative;z-index:2;
+  padding:48px 60px 22px;
+  display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;
+  border-bottom:1px solid var(--line);
+}
+body.webview .page-head{display:none}
+.page-head-left .tag{
+  font-size:.68rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--yellow);margin-bottom:10px;
+}
+.page-head h1{
+  font-family:'Anton',sans-serif;
+  font-size:clamp(2rem,5vw,3.4rem);
+  letter-spacing:.04em;line-height:1;
+}
+.page-head-right{
+  color:var(--muted);font-size:.84rem;line-height:1.7;max-width:380px;
+}
+.page-head-right strong{color:var(--white);font-weight:500}
+
+/* FILTERS BAR */
+.filters-bar{
+  position:relative;z-index:3;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:18px 60px;
+  background:rgba(8,25,43,0.92);
+  border-bottom:1px solid var(--line);
+}
+body.webview .filters-bar{padding-top:14px;border-top:none}
+.search{
+  flex:1;min-width:240px;max-width:420px;
+  display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--line2);
+  border-radius:10px;
+  padding:10px 14px;
+  transition:border-color .2s,background .2s;
+}
+.search:focus-within{border-color:var(--yellow);background:rgba(255,255,255,.06)}
+.search svg{flex-shrink:0;width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:2}
+.search input{
+  flex:1;background:none;border:none;outline:none;
+  color:var(--white);font:inherit;font-size:.92rem;
+}
+.search input::placeholder{color:var(--muted)}
+
+.chip-group{display:flex;gap:6px;flex-wrap:wrap}
+.chip{
+  background:rgba(255,255,255,.03);
+  border:1px solid var(--line2);
+  border-radius:100px;
+  padding:7px 14px;
+  font-size:.74rem;letter-spacing:.06em;
+  color:var(--muted2);
+  cursor:pointer;
+  user-select:none;
+  display:inline-flex;align-items:center;gap:6px;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.chip:hover{border-color:rgba(255,255,255,.25);color:#fff}
+.chip.on{
+  background:rgba(200,230,25,.13);
+  border-color:rgba(200,230,25,.45);
+  color:var(--yellow);
+}
+.chip-dot{
+  display:inline-block;width:8px;height:8px;border-radius:50%;
+}
+
+.geo-btn{
+  margin-left:auto;
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(26,127,212,.12);
+  border:1px solid rgba(26,127,212,.35);
+  color:#7cc1ff;
+  padding:9px 16px;border-radius:10px;
+  font-size:.78rem;font-weight:600;letter-spacing:.04em;
+  cursor:pointer;
+  transition:background .2s,transform .2s;
+}
+.geo-btn:hover{background:rgba(26,127,212,.22);transform:translateY(-1px)}
+.geo-btn svg{width:14px;height:14px;fill:currentColor}
+
+/* MOBILE TOGGLE */
+.mobile-toggle{
+  display:none;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--line2);
+  border-radius:10px;
+  padding:4px;
+  gap:0;
+}
+.mobile-toggle button{
+  background:none;border:none;cursor:pointer;
+  padding:8px 16px;border-radius:7px;
+  font:inherit;font-size:.78rem;font-weight:600;letter-spacing:.04em;
+  color:var(--muted2);
+  transition:background .2s,color .2s;
+}
+.mobile-toggle button.on{
+  background:var(--yellow);color:#08192b;
+}
+
+/* CONTENT SPLIT */
+.content-split{
+  position:relative;z-index:2;
+  display:grid;
+  grid-template-columns:420px 1fr;
+  flex:1;
+  min-height:0;
+}
+
+/* LIST */
+.courts-list{
+  overflow-y:auto;
+  padding:18px 22px 32px;
+  border-right:1px solid var(--line);
+  background:rgba(0,0,0,.12);
+  max-height:calc(100vh - 200px);
+}
+body.webview .courts-list{max-height:calc(100vh - 86px)}
+.list-meta{
+  font-size:.74rem;color:var(--muted);letter-spacing:.08em;
+  text-transform:uppercase;
+  padding:4px 6px 14px;
+}
+.list-meta b{color:var(--yellow);font-weight:600}
+
+.court-card{
+  display:block;
+  background:var(--bg2);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:18px 18px 16px;
+  margin-bottom:10px;
+  cursor:pointer;
+  transition:border-color .2s,transform .15s,background .2s;
+  position:relative;
+}
+.court-card:hover{
+  border-color:rgba(200,230,25,.3);
+  background:#123460;
+  transform:translateX(2px);
+}
+.court-card.active{
+  border-color:var(--yellow);
+  background:#123460;
+  box-shadow:0 0 0 1px var(--yellow), 0 8px 24px rgba(200,230,25,.08);
+}
+.court-name{
+  font-family:'DM Sans',sans-serif;
+  font-weight:600;font-size:1rem;
+  margin-bottom:4px;line-height:1.3;
+}
+.court-loc{
+  font-size:.78rem;color:var(--muted);
+  margin-bottom:12px;
+}
+.court-tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag-pill{
+  font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;
+  font-weight:600;
+  padding:3px 9px;border-radius:100px;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.tag-hard{background:rgba(26,127,212,.18);color:#7cc1ff}
+.tag-clay{background:rgba(232,80,40,.18);color:#ff9272}
+.tag-grass{background:rgba(200,230,25,.18);color:var(--yellow)}
+.tag-carpet{background:rgba(255,255,255,.12);color:#cbd}
+.tag-indoor{background:rgba(255,255,255,.06);color:var(--muted2);border:1px solid var(--line2)}
+.tag-outdoor{background:rgba(255,255,255,.06);color:var(--muted2);border:1px solid var(--line2)}
+.tag-public{background:rgba(126,217,87,.16);color:#a8e88a}
+.tag-private{background:rgba(255,180,80,.14);color:#ffc678}
+.court-distance{
+  position:absolute;top:18px;right:18px;
+  font-size:.7rem;color:var(--yellow);
+  font-weight:600;letter-spacing:.04em;
+}
+
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--muted);
+}
+.empty-state svg{width:48px;height:48px;margin-bottom:12px;opacity:.4}
+.empty-state p{font-size:.88rem;line-height:1.7}
+
+/* MAP */
+.map-container{position:relative}
+#map{
+  position:absolute;inset:0;
+  background:#06121e;
+}
+.leaflet-container{background:#06121e !important;font-family:'DM Sans',sans-serif !important}
+.leaflet-control-zoom a{
+  background:rgba(13,37,64,.92) !important;
+  color:var(--yellow) !important;
+  border:1px solid var(--line2) !important;
+}
+.leaflet-control-zoom a:hover{
+  background:#123460 !important;
+}
+.leaflet-control-attribution{
+  background:rgba(8,25,43,.85) !important;
+  color:var(--muted) !important;
+  font-size:10px !important;
+}
+.leaflet-control-attribution a{color:var(--yellow) !important}
+
+.leaflet-popup-content-wrapper{
+  background:var(--bg2) !important;
+  color:var(--white) !important;
+  border:1px solid var(--line2);
+  border-radius:12px !important;
+  padding:6px !important;
+  box-shadow:0 10px 30px rgba(0,0,0,.5) !important;
+}
+.leaflet-popup-tip{background:var(--bg2) !important;border:1px solid var(--line2)}
+.leaflet-popup-content{margin:12px 14px !important;font-size:.85rem !important;line-height:1.5}
+.leaflet-popup-close-button{color:var(--muted) !important}
+.popup-name{font-weight:600;font-size:.95rem;margin-bottom:6px;color:#fff}
+.popup-loc{font-size:.78rem;color:var(--muted);margin-bottom:10px}
+.popup-tags{display:flex;flex-wrap:wrap;gap:4px}
+
+.court-marker{
+  width:24px;height:24px;border-radius:50%;
+  border:2px solid #fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.5),0 0 0 2px rgba(8,25,43,.6);
+  transition:transform .15s;
+}
+.court-marker:hover{transform:scale(1.18)}
+.court-marker.active-marker{
+  width:32px;height:32px;
+  box-shadow:0 0 0 3px var(--yellow),0 4px 14px rgba(200,230,25,.5);
+  z-index:1000 !important;
+}
+
+/* CTA STRIP (bottom of list) */
+.list-cta{
+  margin-top:18px;
+  padding:18px 18px;
+  background:linear-gradient(135deg,rgba(16,96,168,.18),rgba(16,96,168,.04));
+  border:1px solid rgba(26,127,212,.28);
+  border-radius:12px;
+}
+.list-cta h4{
+  font-family:'Anton',sans-serif;letter-spacing:.06em;
+  font-size:.95rem;margin-bottom:6px;color:var(--white);
+}
+.list-cta p{color:var(--muted2);font-size:.78rem;line-height:1.7;margin-bottom:12px}
+.list-cta a{
+  display:inline-flex;align-items:center;gap:6px;
+  color:var(--yellow);text-decoration:none;font-size:.78rem;font-weight:600;
+  letter-spacing:.04em;
+}
+.list-cta a:hover{text-decoration:underline}
+
+/* FOOTER */
+footer{
+  position:relative;z-index:2;
+  background:#040e18;
+  border-top:1px solid rgba(255,255,255,.05);
+  padding:30px 60px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;
+}
+body.webview footer{display:none}
+.f-logo{font-family:'Anton',sans-serif;font-size:1.05rem;letter-spacing:.1em;color:var(--yellow)}
+.f-links{display:flex;gap:24px;list-style:none}
+.f-links a{color:rgba(255,255,255,.28);font-size:.78rem;text-decoration:none;transition:color .2s}
+.f-links a:hover{color:var(--yellow)}
+.f-copy{color:rgba(255,255,255,.15);font-size:.74rem}
+
+/* RESPONSIVE */
+@media(max-width:960px){
+  nav{padding:14px 22px}
+  .page-head{padding:34px 22px 18px}
+  .filters-bar{padding:14px 22px;gap:8px}
+  .geo-btn{order:5;margin-left:0}
+  .content-split{grid-template-columns:1fr;grid-template-rows:1fr}
+  .courts-list{
+    border-right:none;
+    max-height:calc(100vh - 240px);
+  }
+  body.webview .courts-list{max-height:calc(100vh - 130px)}
+  .map-container{display:none;height:calc(100vh - 240px)}
+  body.webview .map-container{height:calc(100vh - 130px)}
+  body.show-map .courts-list{display:none}
+  body.show-map .map-container{display:block;position:relative}
+  body.show-map .map-container #map{position:absolute;inset:0}
+  .mobile-toggle{display:inline-flex}
+  footer{padding:22px}
+}
+@media(max-width:540px){
+  .page-head h1{font-size:1.9rem}
+  .page-head-right{font-size:.78rem}
+  .chip{padding:6px 11px;font-size:.7rem}
+  .search{min-width:0;width:100%}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">ULTI<em>MATE</em></a>
+  <ul class="nav-ul">
+    <li><a href="index.html">App</a></li>
+    <li><a href="/tournamentcourts" class="on">Courts</a></li>
+    <li><a href="/tournamentstats">Stats</a></li>
+    <li><a href="index-2.html">Privacy</a></li>
+  </ul>
+</nav>
+
+<div class="page-head">
+  <div class="page-head-left">
+    <p class="tag">Find · Tennis</p>
+    <h1>WHERE TO<br>PLAY TODAY</h1>
+  </div>
+  <div class="page-head-right">
+    Search a worldwide directory of tennis courts. Filter by surface, indoor / outdoor and access — then open the location right from your phone. <strong>The list grows with every release.</strong>
+  </div>
+</div>
+
+<div class="filters-bar">
+  <label class="search">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+    <input id="search" type="search" placeholder="Search city, country, club…" autocomplete="off"/>
+  </label>
+
+  <div class="chip-group" id="surface-filters">
+    <span class="chip on" data-surface="all">All</span>
+    <span class="chip" data-surface="hard"><span class="chip-dot" style="background:#1a7fd4"></span>Hard</span>
+    <span class="chip" data-surface="clay"><span class="chip-dot" style="background:#e8321c"></span>Clay</span>
+    <span class="chip" data-surface="grass"><span class="chip-dot" style="background:#c8e619"></span>Grass</span>
+    <span class="chip" data-surface="carpet"><span class="chip-dot" style="background:#aaa"></span>Carpet</span>
+  </div>
+
+  <div class="chip-group" id="other-filters">
+    <span class="chip" data-flag="indoor">⊟ Indoor</span>
+    <span class="chip" data-flag="public">⊕ Public</span>
+  </div>
+
+  <div class="mobile-toggle">
+    <button id="tog-list" class="on">List</button>
+    <button id="tog-map">Map</button>
+  </div>
+</div>
+
+<div class="content-split">
+  <aside class="courts-list" id="courts-list">
+    <p class="list-meta"><b id="result-count">0</b> courts found</p>
+    <div id="cards-wrap"></div>
+    <div class="list-cta">
+      <h4>MISSING YOUR COURT?</h4>
+      <p>The directory is curated and grows with every release. Send us the name, address and a short note, and we'll add it.</p>
+      <a href="mailto:kenno.ruul@ultimateraw.pro?subject=Add%20a%20court">Send by email →</a>
+    </div>
+  </aside>
+  <div class="map-container">
+    <div id="map"></div>
+  </div>
+</div>
+
+<footer>
+  <div class="f-logo">🎾 ULTIMATE</div>
+  <ul class="f-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="/tournamentcourts">Courts</a></li>
+    <li><a href="/tournamentstats">Stats</a></li>
+    <li><a href="index-2.html">Privacy</a></li>
+  </ul>
+  <span class="f-copy">© 2025 My Products. All rights reserved.</span>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/* ════════════════════════════════════════════
+   COURT DATABASE (static — no backend)
+════════════════════════════════════════════ */
+const COURTS = [
+  // Grand Slam venues
+  {n:"Roland Garros",                  c:"Paris",          co:"France",        lat:48.8472, lon:2.2496,   s:"clay",   i:false, p:false},
+  {n:"All England Lawn Tennis Club",   c:"London",         co:"United Kingdom",lat:51.4341, lon:-0.2139,  s:"grass",  i:false, p:false},
+  {n:"USTA Billie Jean King NTC",      c:"New York",       co:"USA",           lat:40.7505, lon:-73.8458, s:"hard",   i:false, p:true },
+  {n:"Melbourne Park",                 c:"Melbourne",      co:"Australia",     lat:-37.8217,lon:144.9785, s:"hard",   i:false, p:true },
+
+  // ── KAZAKHSTAN ──
+  {n:"National Tennis Center",         c:"Astana",         co:"Kazakhstan",    lat:51.1660, lon:71.4260,  s:"hard",   i:true,  p:false},
+  {n:"Beeline Arena",                  c:"Astana",         co:"Kazakhstan",    lat:51.1310, lon:71.4310,  s:"hard",   i:true,  p:false},
+  {n:"Almaty Tennis Park",             c:"Almaty",         co:"Kazakhstan",    lat:43.2300, lon:76.9450,  s:"hard",   i:false, p:true },
+  {n:"Esentai Tennis Club",            c:"Almaty",         co:"Kazakhstan",    lat:43.2180, lon:76.9260,  s:"hard",   i:false, p:false},
+  {n:"Daulet Sports Complex",          c:"Almaty",         co:"Kazakhstan",    lat:43.2520, lon:76.9490,  s:"clay",   i:false, p:false},
+  {n:"Gorky Park Tennis Courts",       c:"Almaty",         co:"Kazakhstan",    lat:43.2466, lon:76.9582,  s:"hard",   i:false, p:true },
+  {n:"Karaganda Tennis Center",        c:"Karaganda",      co:"Kazakhstan",    lat:49.8060, lon:73.1160,  s:"hard",   i:true,  p:true },
+  {n:"Shymkent Sports Complex",        c:"Shymkent",       co:"Kazakhstan",    lat:42.3170, lon:69.5950,  s:"hard",   i:false, p:true },
+  {n:"Aktobe Tennis Club",             c:"Aktobe",         co:"Kazakhstan",    lat:50.2839, lon:57.1660,  s:"hard",   i:true,  p:true },
+
+  // ATP Masters & majors
+  {n:"Indian Wells Tennis Garden",     c:"Indian Wells",   co:"USA",           lat:33.7222, lon:-116.3019,s:"hard",   i:false, p:true },
+  {n:"Hard Rock Stadium",              c:"Miami Gardens",  co:"USA",           lat:25.9580, lon:-80.2389, s:"hard",   i:false, p:false},
+  {n:"Caja Mágica",                    c:"Madrid",         co:"Spain",         lat:40.3744, lon:-3.6878,  s:"clay",   i:false, p:true },
+  {n:"Foro Italico",                   c:"Rome",           co:"Italy",         lat:41.9285, lon:12.4546,  s:"clay",   i:false, p:true },
+  {n:"Monte Carlo Country Club",       c:"Monte Carlo",    co:"Monaco",        lat:43.7569, lon:7.4456,   s:"clay",   i:false, p:false},
+  {n:"Inalpi Arena (ATP Finals)",      c:"Turin",          co:"Italy",         lat:45.0414, lon:7.6356,   s:"hard",   i:true,  p:false},
+  {n:"Cincinnati Tennis Center",       c:"Mason, OH",      co:"USA",           lat:39.3536, lon:-84.2778, s:"hard",   i:false, p:true },
+  {n:"Stade Pierre-Mauroy",            c:"Lille",          co:"France",        lat:50.6122, lon:3.1308,   s:"hard",   i:true,  p:false},
+
+  // Grass-court warmups
+  {n:"Halle (OWL Arena)",              c:"Halle",          co:"Germany",       lat:51.9986, lon:8.3608,   s:"grass",  i:false, p:false},
+  {n:"Queen's Club",                   c:"London",         co:"United Kingdom",lat:51.4881, lon:-0.2122,  s:"grass",  i:false, p:false},
+  {n:"TC Weissenhof",                  c:"Stuttgart",      co:"Germany",       lat:48.7858, lon:9.1750,   s:"grass",  i:false, p:false},
+  {n:"Intl. Tennis Hall of Fame",      c:"Newport, RI",    co:"USA",           lat:41.4854, lon:-71.3098, s:"grass",  i:false, p:true },
+
+  // Clay
+  {n:"Am Rothenbaum",                  c:"Hamburg",        co:"Germany",       lat:53.5856, lon:9.9914,   s:"clay",   i:false, p:false},
+  {n:"RCT Barcelona 1899",             c:"Barcelona",      co:"Spain",         lat:41.3925, lon:2.1158,   s:"clay",   i:false, p:false},
+  {n:"Rio Open Stadium",               c:"Rio de Janeiro", co:"Brazil",        lat:-22.9719,lon:-43.2247, s:"clay",   i:false, p:false},
+  {n:"Estoril Tennis Club",            c:"Estoril",        co:"Portugal",      lat:38.7060, lon:-9.3980,  s:"clay",   i:false, p:false},
+  {n:"Geneva Tennis Club",             c:"Geneva",         co:"Switzerland",   lat:46.1970, lon:6.1570,   s:"clay",   i:false, p:false},
+  {n:"Båstad Tennis Stadium",          c:"Båstad",         co:"Sweden",        lat:56.4180, lon:12.8460,  s:"clay",   i:false, p:true },
+
+  // Central / Eastern Europe
+  {n:"TK Sparta Praha",                c:"Prague",         co:"Czechia",       lat:50.1060, lon:14.4210,  s:"clay",   i:false, p:false},
+  {n:"Royal Park Tennis Club",         c:"Linz",           co:"Austria",       lat:48.3050, lon:14.2900,  s:"hard",   i:true,  p:false},
+  {n:"Lotto Arena",                    c:"Antwerp",        co:"Belgium",       lat:51.2300, lon:4.4180,   s:"hard",   i:true,  p:false},
+  {n:"Sofia Arena Armeec",             c:"Sofia",          co:"Bulgaria",      lat:42.6470, lon:23.3220,  s:"hard",   i:true,  p:false},
+  {n:"Novak Tennis Centre",            c:"Belgrade",       co:"Serbia",        lat:44.8170, lon:20.4670,  s:"clay",   i:false, p:true },
+
+  // Turkey
+  {n:"Megasaray Tennis Courts",        c:"Antalya",        co:"Turkey",        lat:36.8530, lon:30.8150,  s:"hard",   i:false, p:false},
+  {n:"Garanti Koza Sports Centre",     c:"Istanbul",       co:"Turkey",        lat:41.0750, lon:29.0830,  s:"hard",   i:false, p:true },
+
+  // Asia & Middle East
+  {n:"National Tennis Center",         c:"Beijing",        co:"China",         lat:39.9892, lon:116.4778, s:"hard",   i:false, p:true },
+  {n:"Ariake Coliseum",                c:"Tokyo",          co:"Japan",         lat:35.6364, lon:139.7872, s:"hard",   i:false, p:true },
+  {n:"Olympic Tennis Centre",          c:"Seoul",          co:"South Korea",   lat:37.5197, lon:127.1075, s:"hard",   i:false, p:true },
+  {n:"Singapore Sports Hub",           c:"Singapore",      co:"Singapore",     lat:1.3033,  lon:103.8744, s:"hard",   i:true,  p:true },
+  {n:"Dubai Duty Free Tennis Stadium", c:"Dubai",          co:"UAE",           lat:25.2222, lon:55.2867,  s:"hard",   i:false, p:true },
+  {n:"Khalifa International Complex",  c:"Doha",           co:"Qatar",         lat:25.2647, lon:51.4364,  s:"hard",   i:false, p:true },
+  {n:"Longgang Tennis Centre",         c:"Shenzhen",       co:"China",         lat:22.7320, lon:114.2650, s:"hard",   i:false, p:true },
+  {n:"Mahindra Tennis Centre",         c:"Pune",           co:"India",         lat:18.5830, lon:73.8210,  s:"hard",   i:false, p:true },
+  {n:"Hua Mark Indoor Stadium",        c:"Bangkok",        co:"Thailand",      lat:13.7550, lon:100.6210, s:"hard",   i:true,  p:true },
+
+  // Central Asia
+  {n:"Olympic Tennis Center",          c:"Tashkent",       co:"Uzbekistan",    lat:41.3430, lon:69.2730,  s:"hard",   i:true,  p:true },
+  {n:"Bishkek Tennis Club",            c:"Bishkek",        co:"Kyrgyzstan",    lat:42.8746, lon:74.5698,  s:"hard",   i:false, p:true },
+
+  // North America community
+  {n:"USTA Lake Nona Campus",          c:"Orlando, FL",    co:"USA",           lat:28.3922, lon:-81.2400, s:"hard",   i:false, p:true },
+  {n:"Stanley Park Tennis Courts",     c:"Vancouver",      co:"Canada",        lat:49.2900, lon:-123.1390,s:"hard",   i:false, p:true },
+  {n:"Central Park Tennis Center",     c:"New York",       co:"USA",           lat:40.7891, lon:-73.9620, s:"clay",   i:false, p:true },
+  {n:"Atlanta Tennis Center",          c:"Atlanta",        co:"USA",           lat:33.8120, lon:-84.3270, s:"hard",   i:false, p:true },
+
+  // Latin America
+  {n:"Buenos Aires Lawn Tennis Club",  c:"Buenos Aires",   co:"Argentina",     lat:-34.5747,lon:-58.4170, s:"clay",   i:false, p:false},
+  {n:"Estadio Manuel Alonso",          c:"Mexico City",    co:"Mexico",        lat:19.4170, lon:-99.1880, s:"hard",   i:false, p:true },
+  {n:"Acapulco Tennis Center",         c:"Acapulco",       co:"Mexico",        lat:16.8440, lon:-99.8810, s:"hard",   i:false, p:false},
+
+  // Africa / Oceania
+  {n:"Ellis Park Tennis Stadium",      c:"Johannesburg",   co:"South Africa",  lat:-26.1980,lon:28.0600,  s:"hard",   i:false, p:true },
+  {n:"Sydney Olympic Park Tennis",     c:"Sydney",         co:"Australia",     lat:-33.8460,lon:151.0700, s:"hard",   i:false, p:true },
+  {n:"Memorial Drive Tennis Centre",   c:"Adelaide",       co:"Australia",     lat:-34.9160,lon:138.5940, s:"hard",   i:false, p:true },
+  {n:"Queensland Tennis Centre",       c:"Brisbane",       co:"Australia",     lat:-27.4770,lon:153.0580, s:"hard",   i:false, p:true },
+  {n:"ASB Tennis Arena",               c:"Auckland",       co:"New Zealand",   lat:-36.8520,lon:174.7690, s:"hard",   i:false, p:false},
+];
+
+/* ════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+const state = {
+  surface:'all',
+  indoor:false,
+  publicOnly:false,
+  query:'',
+  activeId:null,
+};
+
+const SURFACE_COLOR = {hard:'#1a7fd4', clay:'#e8321c', grass:'#c8e619', carpet:'#aaa'};
+
+/* ════════════════════════════════════════════
+   MAP INIT
+════════════════════════════════════════════ */
+const map = L.map('map', {
+  center:[30, 10],
+  zoom:2,
+  worldCopyJump:true,
+  zoomControl:true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom:19,
+  attribution:'© <a href="https://carto.com/">CARTO</a> · © <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+  subdomains:'abcd',
+}).addTo(map);
+
+const markers = new Map();
+
+function makeMarkerIcon(surface, active){
+  const color = SURFACE_COLOR[surface] || '#888';
+  return L.divIcon({
+    className:'',
+    html:`<div class="court-marker${active?' active-marker':''}" style="background:${color}"></div>`,
+    iconSize:[active?32:24, active?32:24],
+    iconAnchor:[active?16:12, active?16:12],
+  });
+}
+
+COURTS.forEach((court, i)=>{
+  court.id = i;
+  const m = L.marker([court.lat, court.lon], {icon:makeMarkerIcon(court.s, false)})
+    .bindPopup(popupHtml(court));
+  m.on('click', ()=>setActive(court.id, {fromMarker:true}));
+  m.addTo(map);
+  markers.set(i, m);
+});
+
+function popupHtml(c){
+  return `
+    <div class="popup-name">${escapeHtml(c.n)}</div>
+    <div class="popup-loc">${escapeHtml(c.c)}, ${escapeHtml(c.co)}</div>
+    <div class="popup-tags">
+      <span class="tag-pill tag-${c.s}">${c.s}</span>
+      <span class="tag-pill ${c.i?'tag-indoor':'tag-outdoor'}">${c.i?'Indoor':'Outdoor'}</span>
+      <span class="tag-pill ${c.p?'tag-public':'tag-private'}">${c.p?'Public':'Private'}</span>
+    </div>`;
+}
+
+/* ════════════════════════════════════════════
+   LIST RENDER
+════════════════════════════════════════════ */
+const wrap = document.getElementById('cards-wrap');
+const countEl = document.getElementById('result-count');
+
+function render(){
+  const filtered = COURTS.filter(matches);
+  countEl.textContent = filtered.length;
+
+  // Update map visibility
+  COURTS.forEach(c=>{
+    const visible = filtered.includes(c);
+    const m = markers.get(c.id);
+    if(visible){
+      if(!map.hasLayer(m)) m.addTo(map);
+    } else {
+      if(map.hasLayer(m)) map.removeLayer(m);
+    }
+  });
+
+  // Render list
+  if(filtered.length===0){
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/>
+        </svg>
+        <p>No courts match your filters.<br>Try a wider search.</p>
+      </div>`;
+    return;
+  }
+  wrap.innerHTML = filtered.map(cardHtml).join('');
+  wrap.querySelectorAll('.court-card').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = +el.dataset.id;
+      setActive(id, {fromList:true});
+    });
+  });
+}
+
+function cardHtml(c){
+  return `
+    <article class="court-card ${state.activeId===c.id?'active':''}" data-id="${c.id}">
+      <div class="court-name">${escapeHtml(c.n)}</div>
+      <div class="court-loc">${escapeHtml(c.c)}, ${escapeHtml(c.co)}</div>
+      <div class="court-tags">
+        <span class="tag-pill tag-${c.s}">${c.s}</span>
+        <span class="tag-pill ${c.i?'tag-indoor':'tag-outdoor'}">${c.i?'Indoor':'Outdoor'}</span>
+        <span class="tag-pill ${c.p?'tag-public':'tag-private'}">${c.p?'Public':'Private'}</span>
+      </div>
+    </article>`;
+}
+
+function matches(c){
+  if(state.surface!=='all' && c.s!==state.surface) return false;
+  if(state.indoor && !c.i) return false;
+  if(state.publicOnly && !c.p) return false;
+  if(state.query){
+    const q = state.query.toLowerCase();
+    if(!(c.n+' '+c.c+' '+c.co).toLowerCase().includes(q)) return false;
+  }
+  return true;
+}
+
+function setActive(id, opts={}){
+  // restore previous marker icon
+  if(state.activeId!=null){
+    const prev = COURTS.find(c=>c.id===state.activeId);
+    if(prev) markers.get(prev.id)?.setIcon(makeMarkerIcon(prev.s, false));
+  }
+  state.activeId = id;
+  const c = COURTS.find(x=>x.id===id);
+  if(!c) return;
+  markers.get(id)?.setIcon(makeMarkerIcon(c.s, true));
+
+  if(opts.fromList){
+    map.flyTo([c.lat, c.lon], Math.max(map.getZoom(), 8), {duration:.7});
+    markers.get(id)?.openPopup();
+    // On mobile, switch to map view
+    if(window.matchMedia('(max-width:960px)').matches){
+      document.body.classList.add('show-map');
+      togList.classList.remove('on'); togMap.classList.add('on');
+      setTimeout(()=>map.invalidateSize(), 320);
+    }
+  }
+  if(opts.fromMarker){
+    // scroll card into view if visible
+    const card = wrap.querySelector(`.court-card[data-id="${id}"]`);
+    if(card) card.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  // refresh card active state without re-rendering full list
+  wrap.querySelectorAll('.court-card').forEach(el=>{
+    el.classList.toggle('active', +el.dataset.id===id);
+  });
+}
+
+/* ════════════════════════════════════════════
+   FILTERS
+════════════════════════════════════════════ */
+document.querySelectorAll('#surface-filters .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#surface-filters .chip').forEach(c=>c.classList.remove('on'));
+    chip.classList.add('on');
+    state.surface = chip.dataset.surface;
+    render();
+  });
+});
+document.querySelectorAll('#other-filters .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    chip.classList.toggle('on');
+    const flag = chip.dataset.flag;
+    if(flag==='indoor') state.indoor = chip.classList.contains('on');
+    if(flag==='public') state.publicOnly = chip.classList.contains('on');
+    render();
+  });
+});
+
+const searchEl = document.getElementById('search');
+searchEl.addEventListener('input', e=>{
+  state.query = e.target.value.trim();
+  render();
+});
+
+/* ════════════════════════════════════════════
+   MOBILE LIST/MAP TOGGLE
+════════════════════════════════════════════ */
+const togList = document.getElementById('tog-list');
+const togMap  = document.getElementById('tog-map');
+togList.addEventListener('click', ()=>{
+  document.body.classList.remove('show-map');
+  togList.classList.add('on'); togMap.classList.remove('on');
+});
+togMap.addEventListener('click', ()=>{
+  document.body.classList.add('show-map');
+  togList.classList.remove('on'); togMap.classList.add('on');
+  setTimeout(()=>map.invalidateSize(), 200);
+});
+
+/* ════════════════════════════════════════════
+   WEBVIEW MODE
+════════════════════════════════════════════ */
+if(new URLSearchParams(location.search).get('webview')==='1'){
+  document.body.classList.add('webview');
+}
+
+/* ════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════ */
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, ch=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[ch]);
+}
+
+/* Initial render */
+render();
+
+/* Resize handler to keep map happy */
+window.addEventListener('resize', ()=>{
+  setTimeout(()=>map.invalidateSize(), 100);
+});
+</script>
+</body>
+</html>

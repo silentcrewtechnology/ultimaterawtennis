@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ultimate — Tournament Bracket App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:ital,wght@0,300;0,500;0,700;1,700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08192b;
+  --blue:#1060a8;
+  --blue2:#1a7fd4;
+  --yellow:#c8e619;
+  --yellow2:#f0f54a;
+  --red:#e8321c;
+  --white:#f2f7fc;
+  --muted:rgba(242,247,252,0.48);
+  --line:rgba(255,255,255,0.08);
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--white);
+  font-family:'DM Sans',sans-serif;
+  overflow-x:hidden;
+}
+
+/* ─── CANVAS BACKGROUND ─── */
+#bg-canvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:0;
+}
+
+/* ─── GRAIN OVERLAY ─── */
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1;opacity:0.6;
+}
+
+/* ─── NAV ─── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:500;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 60px;
+  transition:background .4s,border-color .4s;
+}
+nav.scrolled{
+  background:rgba(8,25,43,0.92);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--line);
+}
+.logo{
+  font-family:'Anton',sans-serif;font-size:1.55rem;
+  letter-spacing:.12em;color:var(--yellow);
+  text-decoration:none;position:relative;z-index:2;
+}
+.logo em{color:var(--white);font-style:normal}
+.nav-ul{display:flex;gap:36px;list-style:none;position:relative;z-index:2}
+.nav-ul a{
+  color:var(--muted);text-decoration:none;
+  font-size:.78rem;font-weight:500;
+  letter-spacing:.12em;text-transform:uppercase;
+  transition:color .2s;
+}
+.nav-ul a:hover,.nav-ul a.on{color:var(--yellow)}
+
+/* ─── HERO ─── */
+.hero{
+  position:relative;z-index:2;
+  min-height:100vh;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:120px 60px 80px;
+  overflow:hidden;
+}
+/* diagonal light slash — sports editorial style */
+.hero::after{
+  content:'';
+  position:absolute;
+  top:-10%;left:-5%;
+  width:55%;height:130%;
+  background:linear-gradient(105deg,
+    rgba(16,96,168,0.15) 0%,
+    rgba(8,25,43,0) 100%);
+  transform:skewX(-8deg);
+  pointer-events:none;
+  z-index:0;
+}
+
+/* Trophy - large diagonal background */
+.trophy-img-wrap{
+  position:absolute;
+  right:-180px;
+  top:-5%;
+  width:72vh;
+  height:95vh;
+  pointer-events:none;
+  z-index:1;
+  opacity:0;
+  animation:trophyReveal 2s 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
+  transform:rotate(-8deg);
+  -webkit-mask-image: linear-gradient(
+    to left,
+    rgba(0,0,0,0.22) 0%,
+    rgba(0,0,0,0.14) 40%,
+    rgba(0,0,0,0) 100%
+  );
+  mask-image: linear-gradient(
+    to left,
+    rgba(0,0,0,0.22) 0%,
+    rgba(0,0,0,0.14) 40%,
+    rgba(0,0,0,0) 100%
+  );
+}
+.trophy-img-wrap img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center top;
+  mix-blend-mode:screen;
+  filter:brightness(0.45) contrast(1.1) saturate(0.6) sepia(0.3);
+}
+@keyframes trophyReveal{
+  from{opacity:0;transform:rotate(-8deg) translateX(60px)}
+  to{opacity:1;transform:rotate(-8deg) translateX(0)}
+}
+
+.hero-inner{max-width:760px;position:relative;z-index:2}
+
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  border:1px solid rgba(200,230,25,.3);
+  background:rgba(200,230,25,.07);
+  color:var(--yellow);
+  font-size:.7rem;font-weight:700;
+  letter-spacing:.16em;text-transform:uppercase;
+  padding:8px 20px;border-radius:100px;
+  margin-bottom:36px;
+  opacity:0;transform:translateY(16px);
+  animation:revealUp .8s .1s ease forwards;
+}
+.hero-eyebrow svg{width:14px;height:14px;fill:currentColor}
+
+.hero h1{
+  font-family:'Anton',sans-serif;
+  font-size:clamp(4.5rem,12vw,9.5rem);
+  line-height:.9;letter-spacing:.03em;
+  opacity:0;
+  animation:revealUp .9s .25s ease forwards;
+}
+.hero h1 .y{color:var(--yellow)}
+.hero h1 .r{
+  color:transparent;
+  -webkit-text-stroke:2px var(--red);
+  text-stroke:2px var(--red);
+}
+
+.hero-sub{
+  margin-top:30px;
+  font-size:1.1rem;color:var(--muted);
+  max-width:480px;line-height:1.8;
+  opacity:0;
+  animation:revealUp .8s .45s ease forwards;
+}
+
+.hero-cta{
+  margin-top:48px;
+  display:flex;gap:14px;flex-wrap:wrap;
+  max-width:520px;
+  opacity:0;
+  animation:revealUp .8s .6s ease forwards;
+}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  padding:15px 28px;border-radius:6px;
+  font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;
+  letter-spacing:.04em;text-decoration:none;border:none;cursor:pointer;
+  white-space:nowrap;
+  transition:transform .2s,box-shadow .2s,background .2s;
+}
+.btn-y{background:var(--yellow);color:#08192b}
+.btn-y:hover{
+  background:var(--yellow2);
+  transform:translateY(-3px);
+  box-shadow:0 12px 32px rgba(200,230,25,.28);
+}
+.btn-o{
+  background:transparent;
+  border:1.5px solid rgba(255,255,255,.18);
+  color:rgba(255,255,255,.78);
+}
+.btn-o:hover{border-color:rgba(255,255,255,.55);color:#fff;transform:translateY(-2px)}
+
+/* score ticker */
+.score-ticker{
+  display:flex;gap:40px;flex-wrap:wrap;
+  margin-top:64px;
+  padding-top:32px;
+  border-top:1px solid rgba(255,255,255,0.08);
+  opacity:0;animation:revealUp .8s .8s ease forwards;
+  position:relative;z-index:2;
+}
+.tick{display:flex;flex-direction:column}
+.tick-val{
+  font-family:'Anton',sans-serif;
+  font-size:2.4rem;letter-spacing:.04em;color:var(--yellow);
+  line-height:1;
+}
+.tick-val span{font-size:1rem;color:var(--muted);vertical-align:middle;margin-left:2px}
+.tick-label{font-size:.68rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:4px}
+
+/* ─── SECTIONS ─── */
+.section{
+  position:relative;z-index:2;
+  max-width:1180px;margin:0 auto;padding:100px 60px;
+}
+.sec-tag{
+  font-size:.68rem;font-weight:700;
+  letter-spacing:.22em;text-transform:uppercase;
+  color:var(--yellow);margin-bottom:12px;
+}
+.sec-h{
+  font-family:'Anton',sans-serif;
+  font-size:clamp(2.4rem,5vw,4rem);
+  letter-spacing:.04em;line-height:1;
+  margin-bottom:56px;
+}
+
+/* reveal on scroll */
+.reveal{opacity:0;transform:translateY(36px);transition:opacity .8s ease,transform .8s ease}
+.reveal.visible{opacity:1;transform:none}
+.reveal-delay-1{transition-delay:.1s}
+.reveal-delay-2{transition-delay:.2s}
+.reveal-delay-3{transition-delay:.3s}
+.reveal-delay-4{transition-delay:.4s}
+
+/* ─── FEATURES ─── */
+.features-wrap{
+  background:linear-gradient(180deg,rgba(255,255,255,.025) 0%,transparent 100%);
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+.grid4{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:14px;overflow:hidden;
+}
+.fcard{
+  background:#0d2540;padding:40px 32px;
+  position:relative;overflow:hidden;
+  transition:background .3s;cursor:default;
+}
+.fcard:hover{background:#123460}
+.fcard-glow{
+  position:absolute;bottom:-40px;right:-40px;
+  width:160px;height:160px;
+  background:radial-gradient(circle,rgba(200,230,25,.12),transparent 70%);
+  pointer-events:none;
+  opacity:0;transition:opacity .4s;
+}
+.fcard:hover .fcard-glow{opacity:1}
+.fcard-ico{
+  width:52px;height:52px;
+  background:rgba(200,230,25,.1);
+  border:1px solid rgba(200,230,25,.2);
+  border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.35rem;margin-bottom:24px;
+  transition:transform .3s;
+}
+.fcard:hover .fcard-ico{transform:scale(1.1) rotate(-4deg)}
+.fcard h3{
+  font-family:'Anton',sans-serif;
+  font-size:1.3rem;letter-spacing:.06em;
+  margin-bottom:10px;
+}
+.fcard p{color:var(--muted);font-size:.86rem;line-height:1.85}
+
+/* ─── STEPS ─── */
+.steps-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.step{
+  padding:44px 32px;position:relative;
+  border-right:1px solid var(--line);
+}
+.step:last-child{border-right:none}
+.step-n{
+  font-family:'Anton',sans-serif;
+  font-size:4rem;line-height:1;
+  color:rgba(200,230,25,.1);margin-bottom:16px;
+  transition:color .3s;
+}
+.step:hover .step-n{color:rgba(200,230,25,.22)}
+.step h4{
+  font-family:'Anton',sans-serif;
+  font-size:1.05rem;letter-spacing:.08em;
+  color:var(--yellow);margin-bottom:8px;
+}
+.step p{color:var(--muted);font-size:.84rem;line-height:1.8}
+.step-arrow{
+  position:absolute;top:44px;right:-12px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:1.8rem;color:rgba(200,230,25,.2);z-index:1;
+}
+
+/* ─── PRIVACY BAND ─── */
+.priv-band{
+  background:linear-gradient(125deg,#c1180a 0%,#8a0e04 100%);
+  border-radius:16px;padding:64px 64px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:32px;flex-wrap:wrap;
+  position:relative;overflow:hidden;
+  box-shadow:0 24px 64px rgba(232,50,28,.25);
+}
+.priv-band::before{
+  content:'';
+  position:absolute;inset:0;
+  background:url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='200' cy='200' r='196' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='2'/%3E%3Ccircle cx='200' cy='200' r='140' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='2'/%3E%3Cline x1='4' y1='200' x2='396' y2='200' stroke='rgba(255,255,255,0.04)' stroke-width='2'/%3E%3Cline x1='200' y1='4' x2='200' y2='396' stroke='rgba(255,255,255,0.04)' stroke-width='2'/%3E%3C/svg%3E") no-repeat right center/480px;
+  pointer-events:none;
+}
+.priv-band h2{
+  font-family:'Anton',sans-serif;
+  font-size:2.4rem;letter-spacing:.05em;margin-bottom:10px;
+}
+.priv-band p{color:rgba(255,255,255,.72);max-width:480px;font-size:.92rem;line-height:1.75}
+.btn-w{background:#fff;color:#8a0e04;font-weight:700;flex-shrink:0;white-space:nowrap}
+.btn-w:hover{background:#f0f0f0;transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.25)}
+
+/* ─── FOOTER ─── */
+footer{
+  position:relative;z-index:2;
+  background:#040e18;
+  border-top:1px solid rgba(255,255,255,.05);
+  padding:40px 60px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;
+}
+.f-logo{font-family:'Anton',sans-serif;font-size:1.15rem;letter-spacing:.1em;color:var(--yellow)}
+.f-links{display:flex;gap:28px;list-style:none}
+.f-links a{color:rgba(255,255,255,.28);font-size:.78rem;text-decoration:none;transition:color .2s}
+.f-links a:hover{color:var(--yellow)}
+.f-copy{color:rgba(255,255,255,.15);font-size:.74rem}
+
+/* ─── ANIMATIONS ─── */
+@keyframes revealUp{
+  from{opacity:0;transform:translateY(22px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* ─── WEB-ONLY SECTION ─── */
+.web-only-band{
+  position:relative;z-index:2;
+  max-width:1180px;margin:0 auto;
+  padding:40px 60px 100px;
+}
+.web-only-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:18px;
+}
+.web-card{
+  background:linear-gradient(150deg,#0d2540 0%,#0a1d33 100%);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:36px 36px 32px;
+  text-decoration:none;color:inherit;
+  display:flex;flex-direction:column;gap:14px;
+  position:relative;overflow:hidden;
+  transition:transform .25s,border-color .25s,background .25s;
+}
+.web-card::after{
+  content:'';
+  position:absolute;top:-60px;right:-60px;
+  width:200px;height:200px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(200,230,25,.12), transparent 70%);
+  pointer-events:none;opacity:0;transition:opacity .3s;
+}
+.web-card:hover{
+  transform:translateY(-4px);
+  border-color:rgba(200,230,25,.32);
+  background:linear-gradient(150deg,#123460 0%,#0a1d33 100%);
+}
+.web-card:hover::after{opacity:1}
+.wc-tag{
+  display:inline-block;
+  font-size:.66rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--yellow);
+  padding:5px 11px;border-radius:100px;
+  background:rgba(200,230,25,.1);border:1px solid rgba(200,230,25,.25);
+  align-self:flex-start;
+}
+.web-card h3{
+  font-family:'Anton',sans-serif;
+  font-size:2rem;letter-spacing:.04em;line-height:1;
+}
+.web-card p{color:var(--muted2);font-size:.92rem;line-height:1.75}
+.wc-cta{
+  margin-top:auto;
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:.84rem;font-weight:600;letter-spacing:.04em;
+  color:var(--yellow);
+}
+.wc-cta svg{width:14px;height:14px;fill:currentColor;transition:transform .2s}
+.web-card:hover .wc-cta svg{transform:translateX(4px)}
+
+/* ─── WEBVIEW MODE ─── */
+body.webview nav,
+body.webview .hero,
+body.webview footer,
+body.webview .features-wrap,
+body.webview .priv-band{display:none}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:900px){
+  .web-only-grid{grid-template-columns:1fr}
+  .web-only-band{padding:30px 30px 70px}
+  .web-card{padding:28px 26px}
+  .web-card h3{font-size:1.5rem}
+  .trophy-img-wrap{display:none}
+  .steps-row{grid-template-columns:1fr 1fr}
+  .step-arrow{display:none}
+  .step{border-right:none;border-bottom:1px solid var(--line)}
+  .step:last-child{border-bottom:none}
+}
+@media(max-width:640px){
+  nav{padding:16px 20px}
+  .hero{padding:100px 20px 64px}
+  .score-ticker{gap:24px;margin-top:48px}
+  .section{padding:72px 20px}
+  .priv-band{padding:40px 28px}
+  footer{padding:30px 20px}
+  .steps-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- PHYSICS CANVAS -->
+<canvas id="bg-canvas"></canvas>
+
+<nav id="nav">
+  <a href="index.html" class="logo">ULTI<em>MATE</em></a>
+  <ul class="nav-ul">
+    <li><a href="index.html" class="on">App</a></li>
+    <li><a href="courts.html">Courts</a></li>
+    <li><a href="stats.html">Stats</a></li>
+    <li><a href="index-2.html">Privacy</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <!-- Trophy image -->
+  <div class="trophy-img-wrap">
+    <img src="trophy.png" alt="Tournament trophy" />
+  </div>
+
+  <div class="hero-inner">
+    <div class="hero-eyebrow">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+      Available on App Store
+    </div>
+    <h1>
+      <span class="y">RUN YOUR</span><br>
+      TOURNA<br>
+      <span class="r">MENT.</span>
+    </h1>
+    <p class="hero-sub">
+      Create brackets, manage players, track live scores, and crown your champion — all from your phone.
+    </p>
+    <div class="hero-cta">
+      <a href="#" class="btn btn-y">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        Download on App Store
+      </a>
+      <a href="index-2.html" class="btn btn-o">Privacy Policy</a>
+    </div>
+
+    <!-- stats — in flow, below buttons -->
+    <div class="score-ticker">
+      <div class="tick"><div class="tick-val">∞<span></span></div><div class="tick-label">Participants</div></div>
+      <div class="tick"><div class="tick-val">1<span>tap</span></div><div class="tick-label">Generate Bracket</div></div>
+      <div class="tick"><div class="tick-val">0<span>kb</span></div><div class="tick-label">Data Sent</div></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- FEATURES -->
+<div class="features-wrap">
+  <div class="section">
+    <p class="sec-tag reveal">Features</p>
+    <h2 class="sec-h reveal">BUILT FOR<br>MATCH DAY</h2>
+    <div class="grid4">
+      <div class="fcard reveal reveal-delay-1">
+        <div class="fcard-glow"></div>
+        <div class="fcard-ico">👤</div>
+        <h3>Player Management</h3>
+        <p>Add, edit, and remove participants anytime. Keep your roster sharp before and during the event.</p>
+      </div>
+      <div class="fcard reveal reveal-delay-2">
+        <div class="fcard-glow"></div>
+        <div class="fcard-ico">🏆</div>
+        <h3>Auto Bracket</h3>
+        <p>Generate a full tournament draw in one tap. Updates automatically as each match completes.</p>
+      </div>
+      <div class="fcard reveal reveal-delay-3">
+        <div class="fcard-glow"></div>
+        <div class="fcard-ico">📊</div>
+        <h3>Live Scores</h3>
+        <p>Enter results on the fly. The bracket advances in real time — no manual shuffling required.</p>
+      </div>
+      <div class="fcard reveal reveal-delay-4">
+        <div class="fcard-glow"></div>
+        <div class="fcard-ico">📸</div>
+        <h3>Group Photo</h3>
+        <p>Attach a tournament photo to capture the moment and share results with all participants.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="section">
+  <p class="sec-tag reveal">How it works</p>
+  <h2 class="sec-h reveal">FOUR STEPS<br>TO KICKOFF</h2>
+  <div class="steps-row">
+    <div class="step reveal reveal-delay-1">
+      <div class="step-n">01</div>
+      <h4>Add Players</h4>
+      <p>Enter all participants' names and details before the event starts.</p>
+      <span class="step-arrow">›</span>
+    </div>
+    <div class="step reveal reveal-delay-2">
+      <div class="step-n">02</div>
+      <h4>Generate Bracket</h4>
+      <p>One tap builds the full draw. Seedings and matchups set automatically.</p>
+      <span class="step-arrow">›</span>
+    </div>
+    <div class="step reveal reveal-delay-3">
+      <div class="step-n">03</div>
+      <h4>Enter Scores</h4>
+      <p>Fill in results after each match — the bracket advances instantly.</p>
+      <span class="step-arrow">›</span>
+    </div>
+    <div class="step reveal reveal-delay-4">
+      <div class="step-n">04</div>
+      <h4>Crown Champion</h4>
+      <p>Add a group photo and share the final standings with everyone.</p>
+    </div>
+  </div>
+</div>
+
+<!-- WEB-ONLY EXTRAS -->
+<div class="section" style="padding-bottom:20px">
+  <p class="sec-tag reveal">More on the web</p>
+  <h2 class="sec-h reveal">EXTRAS THAT DON'T<br>FIT THE PHONE</h2>
+  <div class="web-only-grid">
+    <a href="courts.html" class="web-card reveal reveal-delay-1">
+      <span class="wc-tag">🌐 Web only</span>
+      <h3>FIND TENNIS COURTS</h3>
+      <p>A worldwide directory of clubs and public courts on an interactive dark-themed map. Filter by surface, indoor / outdoor and find the nearest court to you.</p>
+      <span class="wc-cta">Open the map <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>
+    </a>
+    <a href="stats.html" class="web-card reveal reveal-delay-2">
+      <span class="wc-tag">📊 Web only</span>
+      <h3>YOUR MATCHES, VISUALIZED</h3>
+      <p>The big-screen companion to your in-app history. Win-rate timeline, surface breakdown, top opponents and a heatmap of every court you've played. All local.</p>
+      <span class="wc-cta">Open the dashboard <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>
+    </a>
+  </div>
+</div>
+
+<!-- PRIVACY BAND -->
+<div class="section" style="padding-top:0">
+  <div class="priv-band reveal">
+    <div>
+      <h2>YOUR DATA STAYS ON YOUR DEVICE</h2>
+      <p>Ultimate collects zero personal data. No analytics SDKs, no advertising, no cloud uploads. Everything you create lives only on your phone.</p>
+    </div>
+    <a href="index-2.html" class="btn btn-w">Read Privacy Policy →</a>
+  </div>
+</div>
+
+<footer>
+  <div class="f-logo">🎾 ULTIMATE</div>
+  <ul class="f-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="courts.html">Courts</a></li>
+    <li><a href="stats.html">Stats</a></li>
+    <li><a href="index-2.html">Privacy Policy</a></li>
+  </ul>
+  <span class="f-copy">© 2025 My Products. All rights reserved.</span>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════
+   PHYSICS CANVAS — bouncing tennis balls
+═══════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize(){
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  /* ── Draw a realistic tennis ball ── */
+  function drawBall(x, y, r, alpha){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Outer glow
+    const glow = ctx.createRadialGradient(x, y, r*0.2, x, y, r*1.8);
+    glow.addColorStop(0, 'rgba(200,230,25,0.15)');
+    glow.addColorStop(1, 'rgba(200,230,25,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(x, y, r*1.8, 0, Math.PI*2); ctx.fill();
+
+    // Ball body gradient (felt texture)
+    const grad = ctx.createRadialGradient(x-r*0.3, y-r*0.3, r*0.1, x, y, r);
+    grad.addColorStop(0, '#d8f030');
+    grad.addColorStop(0.5, '#b8d010');
+    grad.addColorStop(1, '#8aa008');
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = grad; ctx.fill();
+
+    // Seam lines (characteristic tennis ball curve)
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = r * 0.08;
+    ctx.lineCap = 'round';
+
+    // Left seam
+    ctx.beginPath();
+    ctx.moveTo(x - r*0.15, y - r);
+    ctx.bezierCurveTo(x + r*0.6, y - r*0.4, x + r*0.6, y + r*0.4, x - r*0.15, y + r);
+    ctx.stroke();
+
+    // Right seam
+    ctx.beginPath();
+    ctx.moveTo(x + r*0.15, y - r);
+    ctx.bezierCurveTo(x - r*0.6, y - r*0.4, x - r*0.6, y + r*0.4, x + r*0.15, y + r);
+    ctx.stroke();
+
+    // Shine
+    const shine = ctx.createRadialGradient(x-r*0.3, y-r*0.3, 0, x-r*0.3, y-r*0.3, r*0.6);
+    shine.addColorStop(0, 'rgba(255,255,255,0.28)');
+    shine.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = shine;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  /* ── Ball class with physics ── */
+  class Ball {
+    constructor(x, y, r, vx, vy, alpha){
+      this.x = x; this.y = y; this.r = r;
+      this.vx = vx; this.vy = vy;
+      this.alpha = alpha;
+      this.bounce = 0.72 + Math.random()*0.1;
+      this.friction = 0.992;
+      this.gravity = 0.18 + Math.random()*0.08;
+      this.squishY = 1; this.squishX = 1;
+      this.squishTimer = 0;
+      this.resting = false;
+      this.trail = [];
+      this.trailMax = 8;
+    }
+    update(){
+      if(this.resting){
+        this.vx *= 0.88;
+        if(Math.abs(this.vx) < 0.02) this.vx = 0;
+        this.x += this.vx;
+        if(this.x + this.r >= W){ this.x = W - this.r; this.vx *= -0.4; }
+        if(this.x - this.r <= 0){ this.x = this.r; this.vx *= -0.4; }
+        this.trail = [];
+        // squish MUST recover even when resting
+        this.squishY += (1 - this.squishY) * 0.18;
+        this.squishX += (1 - this.squishX) * 0.18;
+        return;
+      }
+
+      this.vy += this.gravity;
+      this.vx *= this.friction;
+      this.x += this.vx;
+      this.y += this.vy;
+
+      // Floor bounce
+      if(this.y + this.r >= H){
+        this.y = H - this.r;
+        this.vy *= -this.bounce;
+        this.vx *= 0.82;
+        this.squishY = 0.65;
+        this.squishX = 1.35;
+        this.squishTimer = 12;
+        if(Math.abs(this.vy) < 1.2){
+          this.vy = 0;
+          this.resting = true;
+        }
+      }
+      // Ceiling
+      if(this.y - this.r <= 0){
+        this.y = this.r;
+        this.vy *= -this.bounce;
+      }
+      // Walls
+      if(this.x + this.r >= W){
+        this.x = W - this.r;
+        this.vx *= -this.bounce;
+      }
+      if(this.x - this.r <= 0){
+        this.x = this.r;
+        this.vx *= -this.bounce;
+      }
+
+      // Squish recovery
+      if(this.squishTimer > 0){
+        this.squishTimer--;
+        const t = this.squishTimer/12;
+        this.squishY = 0.65 + 0.35*(1-t);
+        this.squishX = 1.35 - 0.35*(1-t);
+      } else {
+        this.squishY += (1-this.squishY)*0.2;
+        this.squishX += (1-this.squishX)*0.2;
+      }
+
+      // Trail
+      this.trail.unshift({x:this.x, y:this.y});
+      if(this.trail.length > this.trailMax) this.trail.pop();
+    }
+    draw(){
+      // draw trail
+      for(let i=0;i<this.trail.length;i++){
+        const t = this.trail[i];
+        const ta = this.alpha * (1 - i/this.trailMax) * 0.18;
+        ctx.save();
+        ctx.globalAlpha = ta;
+        ctx.fillStyle = '#c8e619';
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, this.r*(1-i/this.trailMax*0.5), 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+      }
+      // draw ball with squish
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(this.squishX, this.squishY);
+      ctx.translate(-this.x, -this.y);
+      drawBall(this.x, this.y, this.r, this.alpha);
+      ctx.restore();
+
+      // shadow
+      const shadowAlpha = this.alpha * 0.35 * Math.max(0, 1 - (H - this.y - this.r) / 300);
+      const shadowScale = 1 - (H - this.y - this.r) / H;
+      ctx.save();
+      ctx.globalAlpha = shadowAlpha;
+      const sg = ctx.createRadialGradient(this.x, H-2, 0, this.x, H-2, this.r*shadowScale*1.5);
+      sg.addColorStop(0,'rgba(0,0,0,0.55)');
+      sg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.ellipse(this.x, H-2, this.r*shadowScale*1.4, this.r*shadowScale*0.35, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // Create balls with varied positions/velocities
+  const balls = [
+    new Ball(W*0.75, H*0.2, 28, -1.2, 0, 0.22),
+    new Ball(W*0.85, H*0.1, 18, 1.8, -1, 0.13),
+    new Ball(W*0.92, H*0.35, 14, -0.8, 2, 0.09),
+    new Ball(W*0.65, H*0.05, 10,  1.1, 1, 0.07),
+  ];
+
+  function loop(){
+    ctx.clearRect(0, 0, W, H);
+
+    // Subtle court surface gradient
+    const bg = ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'rgba(16,96,168,0.04)');
+    bg.addColorStop(1,'rgba(8,25,43,0)');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,W,H);
+
+    balls.forEach(b=>{ b.update(); b.draw(); });
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // Reposition balls on resize
+  window.addEventListener('resize',()=>{
+    balls.forEach(b=>{
+      b.x = Math.min(b.x, W-b.r);
+      b.y = Math.min(b.y, H-b.r);
+    });
+  });
+})();
+
+/* ═══════════════════════════════════════
+   SCROLL REVEALS
+═══════════════════════════════════════ */
+const observer = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting) e.target.classList.add('visible');
+  });
+},{threshold:0.12});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+/* ═══════════════════════════════════════
+   NAV SCROLL STATE
+═══════════════════════════════════════ */
+const navEl = document.getElementById('nav');
+window.addEventListener('scroll',()=>{
+  navEl.classList.toggle('scrolled', window.scrollY > 40);
+},{passive:true});
+
+/* ═══════════════════════════════════════
+   WEBVIEW MODE
+═══════════════════════════════════════ */
+if(new URLSearchParams(location.search).get('webview')==='1'){
+  document.body.classList.add('webview');
+}
+</script>
+
+</body>
+</html>
